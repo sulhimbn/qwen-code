@@ -116,6 +116,8 @@ export async function getCorrectedFileContent(
       },
       config.getGeminiClient(),
       abortSignal,
+      // Disable LLM-based corrections in YOLO mode
+      config.getApprovalMode() !== ApprovalMode.YOLO,
     );
     correctedContent = correctedParams.new_string;
   } else {
@@ -124,6 +126,8 @@ export async function getCorrectedFileContent(
       proposedContent,
       config.getGeminiClient(),
       abortSignal,
+      // Disable LLM-based corrections in YOLO mode
+      config.getApprovalMode() !== ApprovalMode.YOLO,
     );
   }
   return { originalContent, correctedContent, fileExists };

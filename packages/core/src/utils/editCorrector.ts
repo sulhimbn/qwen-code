@@ -160,6 +160,7 @@ export async function ensureCorrectEdit(
   originalParams: EditToolParams, // This is the EditToolParams from edit.ts, without \'corrected\'
   client: GeminiClient,
   abortSignal: AbortSignal,
+  llmCorrectionsEnabled: boolean = true,
 ): Promise<CorrectedEditResult> {
   const cacheKey = `${currentContent}---${originalParams.old_string}---${originalParams.new_string}`;
   const cachedResult = editCorrectionCache.get(cacheKey);
@@ -178,7 +179,7 @@ export async function ensureCorrectEdit(
   let occurrences = countOccurrences(currentContent, finalOldString);
 
   if (occurrences === expectedReplacements) {
-    if (newStringPotentiallyEscaped) {
+    if (newStringPotentiallyEscaped && llmCorrectionsEnabled) {
       finalNewString = await correctNewStringEscaping(
         client,
         finalOldString,
@@ -225,7 +226,7 @@ export async function ensureCorrectEdit(
 
     if (occurrences === expectedReplacements) {
       finalOldString = unescapedOldStringAttempt;
-      if (newStringPotentiallyEscaped) {
+      if (newStringPotentiallyEscaped && llmCorrectionsEnabled) {
         finalNewString = await correctNewString(
           client,
           originalParams.old_string, // original old
@@ -263,38 +264,48 @@ export async function ensureCorrectEdit(
         }
       }
 
-      const llmCorrectedOldString = await correctOldStringMismatch(
-        client,
-        currentContent,
-        unescapedOldStringAttempt,
-        abortSignal,
-      );
-      const llmOldOccurrences = countOccurrences(
-        currentContent,
-        llmCorrectedOldString,
-      );
+      if (llmCorrectionsEnabled) {
+        const llmCorrectedOldString = await correctOldStringMismatch(
+          client,
+          currentContent,
+          unescapedOldStringAttempt,
+          abortSignal,
+        );
+        const llmOldOccurrences = countOccurrences(
+          currentContent,
+          llmCorrectedOldString,
+        );
 
-      if (llmOldOccurrences === expectedReplacements) {
-        finalOldString = llmCorrectedOldString;
-        occurrences = llmOldOccurrences;
+        if (llmOldOccurrences === expectedReplacements) {
+          finalOldString = llmCorrectedOldString;
+          occurrences = llmOldOccurrences;
 
-        if (newStringPotentiallyEscaped) {
-          const baseNewStringForLLMCorrection = unescapeStringForGeminiBug(
-            originalParams.new_string,
-          );
-          finalNewString = await correctNewString(
-            client,
-            originalParams.old_string, // original old
-            llmCorrectedOldString, // corrected old
-            baseNewStringForLLMCorrection, // base new for correction
-            abortSignal,
-          );
+          if (newStringPotentiallyEscaped) {
+            const baseNewStringForLLMCorrection = unescapeStringForGeminiBug(
+              originalParams.new_string,
+            );
+            finalNewString = await correctNewString(
+              client,
+              originalParams.old_string, // original old
+              llmCorrectedOldString, // corrected old
+              baseNewStringForLLMCorrection, // base new for correction
+              abortSignal,
+            );
+          }
+        } else {
+          // LLM correction also failed for old_string
+          const result: CorrectedEditResult = {
+            params: { ...originalParams },
+            occurrences: 0, // Explicitly 0 as LLM failed
+          };
+          editCorrectionCache.set(cacheKey, result);
+          return result;
         }
       } else {
-        // LLM correction also failed for old_string
+        // LLM corrections disabled -> return as-is to surface mismatch upstream
         const result: CorrectedEditResult = {
           params: { ...originalParams },
-          occurrences: 0, // Explicitly 0 as LLM failed
+          occurrences: 0,
         };
         editCorrectionCache.set(cacheKey, result);
         return result;
@@ -336,6 +347,7 @@ export async function ensureCorrectFileContent(
   content: string,
   client: GeminiClient,
   abortSignal: AbortSignal,
+  llmCorrectionsEnabled: boolean = true,
 ): Promise<string> {
   const cachedResult = fileContentCorrectionCache.get(content);
   if (cachedResult) {
@@ -349,11 +361,9 @@ export async function ensureCorrectFileContent(
     return content;
   }
 
-  const correctedContent = await correctStringEscaping(
-    content,
-    client,
-    abortSignal,
-  );
+  const correctedContent = llmCorrectionsEnabled
+    ? await correctStringEscaping(content, client, abortSignal)
+    : content;
   fileContentCorrectionCache.set(content, correctedContent);
   return correctedContent;
 }

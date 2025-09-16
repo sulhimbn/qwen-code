@@ -24,7 +24,7 @@ import {
   GeminiEventType,
   ChatCompressionInfo,
 } from './turn.js';
-import { Config } from '../config/config.js';
+import { ApprovalMode, Config } from '../config/config.js';
 import { UserTierId } from '../code_assist/types.js';
 import {
   getCoreSystemPrompt,
@@ -478,10 +478,18 @@ export class GeminiClient {
     // Track the original model from the first call to detect model switching
     const initialModel = originalModel || this.config.getModel();
 
-    const compressed = await this.tryCompressChat(prompt_id);
+    const chatCompression = this.config.getChatCompression();
+    const disableAutoCompressionInYolo =
+      this.config.getApprovalMode() === ApprovalMode.YOLO &&
+      // Default to disabling auto-compression in YOLO unless explicitly set to false
+      (chatCompression?.disableInYolo ?? true);
 
-    if (compressed) {
-      yield { type: GeminiEventType.ChatCompressed, value: compressed };
+    if (!disableAutoCompressionInYolo) {
+      const compressed = await this.tryCompressChat(prompt_id);
+
+      if (compressed) {
+        yield { type: GeminiEventType.ChatCompressed, value: compressed };
+      }
     }
 
     // Check session token limit after compression using accurate token counting

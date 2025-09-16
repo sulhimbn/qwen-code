@@ -156,6 +156,8 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         params,
         this.config.getGeminiClient(),
         abortSignal,
+        // Disable LLM-based corrections in YOLO mode
+        this.config.getApprovalMode() !== ApprovalMode.YOLO,
       );
       finalOldString = correctedEdit.params.old_string;
       finalNewString = correctedEdit.params.new_string;

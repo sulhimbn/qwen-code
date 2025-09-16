@@ -77,6 +77,11 @@ export interface BugCommandSettings {
 
 export interface ChatCompressionSettings {
   contextPercentageThreshold?: number;
+  /**
+   * When true, disables automatic chat history compression while in YOLO approval mode.
+   * Manual compression via commands remains available.
+   */
+  disableInYolo?: boolean;
 }
 
 export interface SummarizeToolOutputSettings {
