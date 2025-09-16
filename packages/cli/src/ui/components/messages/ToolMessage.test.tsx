@@ -39,6 +39,19 @@ vi.mock('../../utils/MarkdownDisplay.js', () => ({
     return <Text>MockMarkdown:{text}</Text>;
   },
 }));
+vi.mock('../subagents/index.js', () => ({
+  AgentExecutionDisplay: function MockAgentExecutionDisplay({
+    data,
+  }: {
+    data: { subagentName: string; taskDescription: string };
+  }) {
+    return (
+      <Text>
+        🤖 {data.subagentName} • Task: {data.taskDescription}
+      </Text>
+    );
+  },
+}));
 
 // Helper to render with context
 const renderWithContext = (
@@ -71,19 +84,19 @@ describe('<ToolMessage />', () => {
       StreamingState.Idle,
     );
     const output = lastFrame();
-    expect(output).toContain('✔'); // Success indicator
+    expect(output).toContain('✓'); // Success indicator
     expect(output).toContain('test-tool');
     expect(output).toContain('A tool for testing');
     expect(output).toContain('MockMarkdown:Test result');
   });
 
   describe('ToolStatusIndicator rendering', () => {
-    it('shows ✔ for Success status', () => {
+    it('shows ✓ for Success status', () => {
       const { lastFrame } = renderWithContext(
         <ToolMessage {...baseProps} status={ToolCallStatus.Success} />,
         StreamingState.Idle,
       );
-      expect(lastFrame()).toContain('✔');
+      expect(lastFrame()).toContain('✓');
     });
 
     it('shows o for Pending status', () => {
@@ -125,7 +138,7 @@ describe('<ToolMessage />', () => {
       );
       expect(lastFrame()).toContain('⊷');
       expect(lastFrame()).not.toContain('MockRespondingSpinner');
-      expect(lastFrame()).not.toContain('✔');
+      expect(lastFrame()).not.toContain('✓');
     });
 
     it('shows paused spinner for Executing status when streamingState is WaitingForConfirmation', () => {
@@ -135,7 +148,7 @@ describe('<ToolMessage />', () => {
       );
       expect(lastFrame()).toContain('⊷');
       expect(lastFrame()).not.toContain('MockRespondingSpinner');
-      expect(lastFrame()).not.toContain('✔');
+      expect(lastFrame()).not.toContain('✓');
     });
 
     it('shows MockRespondingSpinner for Executing status when streamingState is Responding', () => {
@@ -144,7 +157,7 @@ describe('<ToolMessage />', () => {
         StreamingState.Responding, // Simulate app still responding
       );
       expect(lastFrame()).toContain('MockRespondingSpinner');
-      expect(lastFrame()).not.toContain('✔');
+      expect(lastFrame()).not.toContain('✓');
     });
   });
 
@@ -179,5 +192,35 @@ describe('<ToolMessage />', () => {
     // This is harder to assert directly in text output without color checks.
     // We can at least ensure it doesn't have the high emphasis indicator.
     expect(lowEmphasisFrame()).not.toContain('←');
+  });
+
+  it('shows subagent execution display for task tool with proper result display', () => {
+    const subagentResultDisplay = {
+      type: 'task_execution' as const,
+      subagentName: 'file-search',
+      taskDescription: 'Search for files matching pattern',
+      taskPrompt: 'Search for files matching pattern',
+      status: 'running' as const,
+    };
+
+    const props: ToolMessageProps = {
+      name: 'task',
+      description: 'Delegate task to subagent',
+      resultDisplay: subagentResultDisplay,
+      status: ToolCallStatus.Executing,
+      terminalWidth: 80,
+      callId: 'test-call-id-2',
+      confirmationDetails: undefined,
+    };
+
+    const { lastFrame } = renderWithContext(
+      <ToolMessage {...props} />,
+      StreamingState.Responding,
+    );
+
+    const output = lastFrame();
+    expect(output).toContain('🤖'); // Subagent execution display should show
+    expect(output).toContain('file-search'); // Actual subagent name
+    expect(output).toContain('Search for files matching pattern'); // Actual task description
   });
 });

@@ -23,7 +23,12 @@ import { useAuthCommand } from './hooks/useAuthCommand.js';
 import { useQwenAuth } from './hooks/useQwenAuth.js';
 import { useFolderTrust } from './hooks/useFolderTrust.js';
 import { useEditorSettings } from './hooks/useEditorSettings.js';
+import { useQuitConfirmation } from './hooks/useQuitConfirmation.js';
+import { useWelcomeBack } from './hooks/useWelcomeBack.js';
+import { useDialogClose } from './hooks/useDialogClose.js';
 import { useSlashCommandProcessor } from './hooks/slashCommandProcessor.js';
+import { useSubagentCreateDialog } from './hooks/useSubagentCreateDialog.js';
+import { useAgentsManagerDialog } from './hooks/useAgentsManagerDialog.js';
 import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
 import { useMessageQueue } from './hooks/useMessageQueue.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
@@ -40,6 +45,7 @@ import { QwenOAuthProgress } from './components/QwenOAuthProgress.js';
 import { EditorSettingsDialog } from './components/EditorSettingsDialog.js';
 import { FolderTrustDialog } from './components/FolderTrustDialog.js';
 import { ShellConfirmationDialog } from './components/ShellConfirmationDialog.js';
+import { QuitConfirmationDialog } from './components/QuitConfirmationDialog.js';
 import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
 import { ModelSelectionDialog } from './components/ModelSelectionDialog.js';
 import {
@@ -52,6 +58,10 @@ import {
   AvailableModel,
 } from './models/availableModels.js';
 import { processVisionSwitchOutcome } from './hooks/useVisionAutoSwitch.js';
+import {
+  AgentCreationWizard,
+  AgentsManagerDialog,
+} from './components/subagents/index.js';
 import { Colors } from './colors.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
 import { LoadedSettings, SettingScope } from '../config/settings.js';
@@ -114,8 +124,8 @@ import { SettingsDialog } from './components/SettingsDialog.js';
 import { setUpdateHandler } from '../utils/handleAutoUpdate.js';
 import { appEvents, AppEvent } from '../utils/events.js';
 import { isNarrowWidth } from './utils/isNarrowWidth.js';
+import { WelcomeBackDialog } from './components/WelcomeBackDialog.js';
 
-const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 // Maximum number of queued messages to display in UI to prevent performance issues
 const MAX_DISPLAYED_QUEUED_MESSAGES = 3;
 
@@ -294,10 +304,25 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const { isSettingsDialogOpen, openSettingsDialog, closeSettingsDialog } =
     useSettingsCommand();
 
+  const {
+    isSubagentCreateDialogOpen,
+    openSubagentCreateDialog,
+    closeSubagentCreateDialog,
+  } = useSubagentCreateDialog();
+
+  const {
+    isAgentsManagerDialogOpen,
+    openAgentsManagerDialog,
+    closeAgentsManagerDialog,
+  } = useAgentsManagerDialog();
+
   const { isFolderTrustDialogOpen, handleFolderTrustSelect } = useFolderTrust(
     settings,
     setIsTrustedFolder,
   );
+
+  const { showQuitConfirmation, handleQuitConfirmationSelect } =
+    useQuitConfirmation();
 
   const {
     isAuthDialogOpen,
@@ -344,7 +369,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (isQwenAuth && authStatus === 'timeout') {
       setAuthError(
         authMessage ||
-          'Qwen OAuth authentication timed out. Please try again or select a different authentication method.',
+        'Qwen OAuth authentication timed out. Please try again or select a different authentication method.',
       );
       cancelQwenAuth();
       cancelAuthentication();
@@ -641,6 +666,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     commandContext,
     shellConfirmationRequest,
     confirmationRequest,
+    quitConfirmationRequest,
   } = useSlashCommandProcessor(
     config,
     settings,
@@ -657,9 +683,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     openPrivacyNotice,
     openSettingsDialog,
     handleModelSelectionOpen,
+    openSubagentCreateDialog,
+    openAgentsManagerDialog,
     toggleVimEnabled,
     setIsProcessing,
     setGeminiMdFileCount,
+    showQuitConfirmation,
   );
 
   const buffer = useTextBuffer({
@@ -674,7 +703,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const [userMessages, setUserMessages] = useState<string[]>([]);
 
   // Stable reference for cancel handler to avoid circular dependency
-  const cancelHandlerRef = useRef<() => void>(() => {});
+  const cancelHandlerRef = useRef<() => void>(() => { });
 
   const {
     streamingState,
@@ -700,6 +729,34 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     () => cancelHandlerRef.current(),
     handleVisionSwitchRequired,
   );
+
+  // Welcome back functionality
+  const {
+    welcomeBackInfo,
+    showWelcomeBackDialog,
+    welcomeBackChoice,
+    handleWelcomeBackSelection,
+    handleWelcomeBackClose,
+  } = useWelcomeBack(config, submitQuery, buffer, settings.merged);
+
+  // Dialog close functionality
+  const { closeAnyOpenDialog } = useDialogClose({
+    isThemeDialogOpen,
+    handleThemeSelect,
+    isAuthDialogOpen,
+    handleAuthSelect,
+    selectedAuthType: settings.merged.selectedAuthType,
+    isEditorDialogOpen,
+    exitEditorDialog,
+    isSettingsDialogOpen,
+    closeSettingsDialog,
+    isFolderTrustDialogOpen,
+    showPrivacyNotice,
+    setShowPrivacyNotice,
+    showWelcomeBackDialog,
+    handleWelcomeBackClose,
+    quitConfirmationRequest,
+  });
 
   // Message queue for handling input during streaming
   const { messageQueue, addMessage, clearQueue, getQueuedMessagesText } =
@@ -772,21 +829,52 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       setPressedOnce: (value: boolean) => void,
       timerRef: ReturnType<typeof useRef<NodeJS.Timeout | null>>,
     ) => {
+      // Fast double-press: Direct quit (preserve user habit)
       if (pressedOnce) {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
         }
-        // Directly invoke the central command handler.
+        // Exit directly without showing confirmation dialog
         handleSlashCommand('/quit');
-      } else {
-        setPressedOnce(true);
-        timerRef.current = setTimeout(() => {
-          setPressedOnce(false);
-          timerRef.current = null;
-        }, CTRL_EXIT_PROMPT_DURATION_MS);
+        return;
       }
+
+      // First press: Prioritize cleanup tasks
+
+      // Special case: If quit-confirm dialog is open, Ctrl+C means "quit immediately"
+      if (quitConfirmationRequest) {
+        handleSlashCommand('/quit');
+        return;
+      }
+
+      // 1. Close other dialogs (highest priority)
+      if (closeAnyOpenDialog()) {
+        return; // Dialog closed, end processing
+      }
+
+      // 2. Cancel ongoing requests
+      if (streamingState === StreamingState.Responding) {
+        cancelOngoingRequest?.();
+        return; // Request cancelled, end processing
+      }
+
+      // 3. Clear input buffer (if has content)
+      if (buffer.text.length > 0) {
+        buffer.setText('');
+        return; // Input cleared, end processing
+      }
+
+      // All cleanup tasks completed, show quit confirmation dialog
+      handleSlashCommand('/quit-confirm');
     },
-    [handleSlashCommand],
+    [
+      handleSlashCommand,
+      quitConfirmationRequest,
+      closeAnyOpenDialog,
+      streamingState,
+      cancelOngoingRequest,
+      buffer,
+    ],
   );
 
   const handleGlobalKeypress = useCallback(
@@ -819,9 +907,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
         if (isAuthenticating) {
           return;
         }
-        if (!ctrlCPressedOnce) {
-          cancelOngoingRequest?.();
-        }
         handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
       } else if (keyMatchers[Command.EXIT](key)) {
         if (buffer.text.length > 0) {
@@ -853,7 +938,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       ctrlDTimerRef,
       handleSlashCommand,
       isAuthenticating,
-      cancelOngoingRequest,
     ],
   );
 
@@ -909,7 +993,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     (streamingState === StreamingState.Idle ||
       streamingState === StreamingState.Responding) &&
     !initError &&
-    !isProcessing;
+    !isProcessing &&
+    !showWelcomeBackDialog;
 
   const handleClearScreen = useCallback(() => {
     clearItems();
@@ -989,24 +1074,16 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       !isEditorDialogOpen &&
       !isModelSelectionDialogOpen &&
       !isVisionSwitchDialogOpen &&
+      !isSubagentCreateDialogOpen &&
       !showPrivacyNotice &&
+      !showWelcomeBackDialog &&
+      welcomeBackChoice !== 'restart' &&
       geminiClient?.isInitialized?.()
     ) {
       submitQuery(initialPrompt);
       initialPromptSubmitted.current = true;
     }
-  }, [
-    initialPrompt,
-    submitQuery,
-    isAuthenticating,
-    isAuthDialogOpen,
-    isThemeDialogOpen,
-    isEditorDialogOpen,
-    isModelSelectionDialogOpen,
-    isVisionSwitchDialogOpen,
-    showPrivacyNotice,
-    geminiClient,
-  ]);
+  }, [initialPrompt, submitQuery, isAuthenticating, isAuthDialogOpen, isThemeDialogOpen, isEditorDialogOpen, isSubagentCreateDialogOpen, showPrivacyNotice, showWelcomeBackDialog, welcomeBackChoice, geminiClient, isModelSelectionDialogOpen, isVisionSwitchDialogOpen]);
 
   if (quittingMessages) {
     return (
@@ -1113,6 +1190,13 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
               ))}
             </Box>
           )}
+          {showWelcomeBackDialog && welcomeBackInfo?.hasHistory && (
+            <WelcomeBackDialog
+              welcomeBackInfo={welcomeBackInfo}
+              onSelect={handleWelcomeBackSelection}
+              onClose={handleWelcomeBackClose}
+            />
+          )}
 
           {shouldShowIdePrompt && currentIDE ? (
             <IdeIntegrationNudge
@@ -1121,6 +1205,17 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
             />
           ) : isFolderTrustDialogOpen ? (
             <FolderTrustDialog onSelect={handleFolderTrustSelect} />
+          ) : quitConfirmationRequest ? (
+            <QuitConfirmationDialog
+              onSelect={(choice) => {
+                const result = handleQuitConfirmationSelect(choice);
+                if (result?.shouldQuit) {
+                  quitConfirmationRequest.onConfirm(true, result.action);
+                } else {
+                  quitConfirmationRequest.onConfirm(false);
+                }
+              }}
+            />
           ) : shellConfirmationRequest ? (
             <ShellConfirmationDialog request={shellConfirmationRequest} />
           ) : confirmationRequest ? (
@@ -1164,6 +1259,20 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 settings={settings}
                 onSelect={() => closeSettingsDialog()}
                 onRestartRequest={() => process.exit(0)}
+              />
+            </Box>
+          ) : isSubagentCreateDialogOpen ? (
+            <Box flexDirection="column">
+              <AgentCreationWizard
+                onClose={closeSubagentCreateDialog}
+                config={config}
+              />
+            </Box>
+          ) : isAgentsManagerDialogOpen ? (
+            <Box flexDirection="column">
+              <AgentsManagerDialog
+                onClose={closeAgentsManagerDialog}
+                config={config}
               />
             </Box>
           ) : isAuthenticating ? (
@@ -1252,7 +1361,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
               <LoadingIndicator
                 thought={
                   streamingState === StreamingState.WaitingForConfirmation ||
-                  config.getAccessibility()?.disableLoadingPhrases
+                    config.getAccessibility()?.disableLoadingPhrases
                     ? undefined
                     : thought
                 }
@@ -1310,7 +1419,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                   )}
                   {ctrlCPressedOnce ? (
                     <Text color={Colors.AccentYellow}>
-                      Press Ctrl+C again to exit.
+                      Press Ctrl+C again to confirm exit.
                     </Text>
                   ) : ctrlDPressedOnce ? (
                     <Text color={Colors.AccentYellow}>

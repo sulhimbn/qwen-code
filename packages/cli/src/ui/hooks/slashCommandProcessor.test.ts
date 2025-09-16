@@ -147,9 +147,12 @@ describe('useSlashCommandProcessor', () => {
         vi.fn(), // openPrivacyNotice
         vi.fn(), // openSettingsDialog
         mockOpenModelSelectionDialog,
+        vi.fn(), // openSubagentCreateDialog
+        vi.fn(), // openAgentsManagerDialog
         vi.fn(), // toggleVimEnabled
         setIsProcessing,
         vi.fn(), // setGeminiMdFileCount
+        vi.fn(), // _showQuitConfirmation
       ),
     );
 
@@ -453,7 +456,7 @@ describe('useSlashCommandProcessor', () => {
           });
 
           await act(async () => {
-            await vi.advanceTimersByTimeAsync(200);
+            await vi.advanceTimersByTimeAsync(1000); // Advance by 1000ms to trigger the setTimeout callback
           });
 
           expect(mockSetQuittingMessages).toHaveBeenCalledWith([]);
@@ -485,7 +488,7 @@ describe('useSlashCommandProcessor', () => {
           });
 
           await act(async () => {
-            await vi.advanceTimersByTimeAsync(200);
+            await vi.advanceTimersByTimeAsync(1000); // Advance by 1000ms to trigger the setTimeout callback
           });
 
           expect(mockRunExitCleanup).toHaveBeenCalledTimes(1);
@@ -913,12 +916,14 @@ describe('useSlashCommandProcessor', () => {
           vi.fn(), // toggleCorgiMode
           mockSetQuittingMessages,
           vi.fn(), // openPrivacyNotice
-
           vi.fn(), // openSettingsDialog
           vi.fn(), // openModelSelectionDialog
+          vi.fn(), // openSubagentCreateDialog
+          vi.fn(), // openAgentsManagerDialog
           vi.fn(), // toggleVimEnabled
           vi.fn(), // setIsProcessing
           vi.fn(), // setGeminiMdFileCount
+          vi.fn(), // _showQuitConfirmation
         ),
       );
 
