@@ -228,19 +228,24 @@ export class GeminiClient {
 
   async startChat(extraHistory?: Content[]): Promise<GeminiChat> {
     this.forceFullIdeContext = true;
-    const envParts = await getEnvironmentContext(this.config);
+    const envParts = this.config.getSkipStartupContext()
+      ? []
+      : await getEnvironmentContext(this.config);
     const toolRegistry = this.config.getToolRegistry();
     const toolDeclarations = toolRegistry.getFunctionDeclarations();
     const tools: Tool[] = [{ functionDeclarations: toolDeclarations }];
     const history: Content[] = [
-      {
-        role: 'user',
-        parts: envParts,
-      },
-      {
-        role: 'model',
-        parts: [{ text: 'Got it. Thanks for the context!' }],
-      },
+      ...(
+        envParts.length
+          ? [
+              { role: 'user', parts: envParts },
+              {
+                role: 'model',
+                parts: [{ text: 'Got it. Thanks for the context!' }],
+              },
+            ]
+          : []
+      ),
       ...(extraHistory ?? []),
     ];
     try {

@@ -781,11 +781,15 @@ export class SubAgentScope {
       );
     }
 
-    const envParts = await getEnvironmentContext(this.runtimeContext);
-    const envHistory: Content[] = [
-      { role: 'user', parts: envParts },
-      { role: 'model', parts: [{ text: 'Got it. Thanks for the context!' }] },
-    ];
+    const envParts = this.runtimeContext.getSkipStartupContext()
+      ? []
+      : await getEnvironmentContext(this.runtimeContext);
+    const envHistory: Content[] = envParts.length
+      ? [
+          { role: 'user', parts: envParts },
+          { role: 'model', parts: [{ text: 'Got it. Thanks for the context!' }] },
+        ]
+      : [];
 
     const start_history = [
       ...envHistory,

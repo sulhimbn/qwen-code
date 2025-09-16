@@ -232,6 +232,7 @@ export interface ConfigParameters {
   interactive?: boolean;
   trustedFolder?: boolean;
   shouldUseNodePtyShell?: boolean;
+  skipStartupContext?: boolean;
   skipNextSpeakerCheck?: boolean;
 }
 
@@ -317,6 +318,7 @@ export class Config {
   private readonly interactive: boolean;
   private readonly trustedFolder: boolean | undefined;
   private readonly shouldUseNodePtyShell: boolean;
+  private readonly skipStartupContext: boolean;
   private readonly skipNextSpeakerCheck: boolean;
   private initialized: boolean = false;
 
@@ -398,7 +400,8 @@ export class Config {
     this.interactive = params.interactive ?? false;
     this.trustedFolder = params.trustedFolder;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
-    this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
+    this.skipStartupContext = params.skipStartupContext ?? true;
+    this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? true;
 
     // Web search
     this.tavilyApiKey = params.tavilyApiKey;
@@ -855,6 +858,10 @@ export class Config {
 
   getShouldUseNodePtyShell(): boolean {
     return this.shouldUseNodePtyShell;
+  }
+
+  getSkipStartupContext(): boolean {
+    return this.skipStartupContext;
   }
 
   getSkipNextSpeakerCheck(): boolean {

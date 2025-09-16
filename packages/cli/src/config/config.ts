@@ -603,6 +603,7 @@ export async function loadCliConfig(
     interactive,
     trustedFolder,
     shouldUseNodePtyShell: settings.shouldUseNodePtyShell,
+    skipStartupContext: settings.skipStartupContext,
     skipNextSpeakerCheck: settings.skipNextSpeakerCheck,
   });
 }

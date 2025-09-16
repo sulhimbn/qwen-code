@@ -595,12 +595,22 @@ export const SETTINGS_SCHEMA = {
     description: 'The API key for the Tavily API.',
     showInDialog: false,
   },
+  skipStartupContext: {
+    type: 'boolean',
+    label: 'Skip Startup Context',
+    category: 'General',
+    requiresRestart: false,
+    default: true,
+    description:
+      'Do not prepend environment/folder structure context or the initial acknowledgment message.',
+    showInDialog: true,
+  },
   skipNextSpeakerCheck: {
     type: 'boolean',
     label: 'Skip Next Speaker Check',
     category: 'General',
     requiresRestart: false,
-    default: false,
+    default: true,
     description: 'Skip the next speaker check.',
     showInDialog: true,
   },
