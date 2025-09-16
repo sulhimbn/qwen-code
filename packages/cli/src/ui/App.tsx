@@ -369,7 +369,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (isQwenAuth && authStatus === 'timeout') {
       setAuthError(
         authMessage ||
-        'Qwen OAuth authentication timed out. Please try again or select a different authentication method.',
+          'Qwen OAuth authentication timed out. Please try again or select a different authentication method.',
       );
       cancelQwenAuth();
       cancelAuthentication();
@@ -703,7 +703,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const [userMessages, setUserMessages] = useState<string[]>([]);
 
   // Stable reference for cancel handler to avoid circular dependency
-  const cancelHandlerRef = useRef<() => void>(() => { });
+  const cancelHandlerRef = useRef<() => void>(() => {});
 
   const {
     streamingState,
@@ -1083,7 +1083,21 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       submitQuery(initialPrompt);
       initialPromptSubmitted.current = true;
     }
-  }, [initialPrompt, submitQuery, isAuthenticating, isAuthDialogOpen, isThemeDialogOpen, isEditorDialogOpen, isSubagentCreateDialogOpen, showPrivacyNotice, showWelcomeBackDialog, welcomeBackChoice, geminiClient, isModelSelectionDialogOpen, isVisionSwitchDialogOpen]);
+  }, [
+    initialPrompt,
+    submitQuery,
+    isAuthenticating,
+    isAuthDialogOpen,
+    isThemeDialogOpen,
+    isEditorDialogOpen,
+    isSubagentCreateDialogOpen,
+    showPrivacyNotice,
+    showWelcomeBackDialog,
+    welcomeBackChoice,
+    geminiClient,
+    isModelSelectionDialogOpen,
+    isVisionSwitchDialogOpen,
+  ]);
 
   if (quittingMessages) {
     return (
@@ -1361,7 +1375,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
               <LoadingIndicator
                 thought={
                   streamingState === StreamingState.WaitingForConfirmation ||
-                    config.getAccessibility()?.disableLoadingPhrases
+                  config.getAccessibility()?.disableLoadingPhrases
                     ? undefined
                     : thought
                 }
