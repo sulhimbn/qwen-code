@@ -12,6 +12,7 @@ import {
   isTelemetrySdkInitialized,
   GeminiEventType,
   parseAndFormatApiError,
+  ApprovalMode,
 } from '@qwen-code/qwen-code-core';
 import { Content, Part, FunctionCall } from '@google/genai';
 
@@ -38,6 +39,12 @@ export async function runNonInteractive(
     });
 
     const geminiClient = config.getGeminiClient();
+
+    // In YOLO mode, disable next_speaker check to avoid auto-continue.
+    if (config.getApprovalMode && config.getApprovalMode() === ApprovalMode.YOLO) {
+      (config as unknown as { getSkipNextSpeakerCheck: () => boolean }).getSkipNextSpeakerCheck =
+        () => true;
+    }
 
     const abortController = new AbortController();
     let currentMessages: Content[] = [
