@@ -564,17 +564,25 @@ export class GeminiClient {
 
     const turn = new Turn(this.getChat(), prompt_id);
 
-    const loopDetected = await this.loopDetector.turnStarted(signal);
-    if (loopDetected) {
-      yield { type: GeminiEventType.LoopDetected };
-      return turn;
+    // Disable loop detection entirely in YOLO mode
+    const loopDetectionDisabled =
+      this.config.getApprovalMode() === ApprovalMode.YOLO;
+
+    if (!loopDetectionDisabled) {
+      const loopDetected = await this.loopDetector.turnStarted(signal);
+      if (loopDetected) {
+        yield { type: GeminiEventType.LoopDetected };
+        return turn;
+      }
     }
 
     const resultStream = turn.run(request, signal);
     for await (const event of resultStream) {
-      if (this.loopDetector.addAndCheck(event)) {
-        yield { type: GeminiEventType.LoopDetected };
-        return turn;
+      if (!loopDetectionDisabled) {
+        if (this.loopDetector.addAndCheck(event)) {
+          yield { type: GeminiEventType.LoopDetected };
+          return turn;
+        }
       }
       yield event;
       if (event.type === GeminiEventType.Error) {
