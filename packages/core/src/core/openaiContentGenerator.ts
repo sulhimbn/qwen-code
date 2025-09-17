@@ -644,8 +644,8 @@ export class OpenAIContentGenerator implements ContentGenerator {
     let totalTokens = 0;
 
     try {
-      const { get_encoding } = await import('tiktoken');
-      const encoding = get_encoding('cl100k_base'); // GPT-4 encoding, but estimate for qwen
+      const tikToken = await import('tiktoken');
+      const encoding = tikToken.get_encoding('cl100k_base'); // GPT-4 encoding, but estimate for qwen
       totalTokens = encoding.encode(content).length;
       encoding.free();
     } catch (error) {
