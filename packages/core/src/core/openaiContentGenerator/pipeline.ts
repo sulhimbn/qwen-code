@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import {
   type GenerateContentParameters,
   GenerateContentResponse,

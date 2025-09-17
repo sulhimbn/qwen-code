@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OpenAIContentGenerator } from '../openaiContentGenerator/openaiContentGenerator.js';
-import { Config } from '../../config/config.js';
+import type { Config } from '../../config/config.js';
 import { AuthType } from '../contentGenerator.js';
 import type { OpenAICompatibleProvider } from '../openaiContentGenerator/provider/index.js';
 import OpenAI from 'openai';

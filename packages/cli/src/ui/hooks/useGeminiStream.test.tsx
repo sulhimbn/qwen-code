@@ -5,37 +5,41 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Part, PartListUnion } from '@google/genai';
-import {
-  AnyToolInvocation,
-  AuthType,
+import type { Mock, MockInstance } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useGeminiStream } from './useGeminiStream.js';
+import { useKeypress } from './useKeypress.js';
+import * as atCommandProcessor from './atCommandProcessor.js';
+import type {
+  TrackedToolCall,
+  TrackedCompletedToolCall,
+  TrackedExecutingToolCall,
+  TrackedCancelledToolCall,
+} from './useReactToolScheduler.js';
+import { useReactToolScheduler } from './useReactToolScheduler.js';
+import type {
   Config,
   EditorType,
+  GeminiClient,
+  AnyToolInvocation,
+} from '@qwen-code/qwen-code-core';
+import {
+  ApprovalMode,
+  AuthType,
   GeminiEventType as ServerGeminiEventType,
   ToolErrorType,
 } from '@qwen-code/qwen-code-core';
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import { LoadedSettings } from '../../config/settings.js';
-import {
-  HistoryItem,
-  SlashCommandProcessorResult,
-  StreamingState,
-} from '../types.js';
-import { mergePartListUnions, useGeminiStream } from './useGeminiStream.js';
-import { UseHistoryManagerReturn } from './useHistoryManager.js';
-import {
-  TrackedCancelledToolCall,
-  TrackedCompletedToolCall,
-  TrackedExecutingToolCall,
-  TrackedToolCall,
-  useReactToolScheduler,
-} from './useReactToolScheduler.js';
+import type { Part, PartListUnion } from '@google/genai';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
+import type { HistoryItem, SlashCommandProcessorResult } from '../types.js';
+import { MessageType, StreamingState } from '../types.js';
+import type { LoadedSettings } from '../../config/settings.js';
 
 // --- MOCKS ---
 const mockSendMessageStream = vi
   .fn()
-  .mockReturnValue((async function* () {})());
+  .mockReturnValue((async function* () { })());
 const mockStartChat = vi.fn();
 
 const MockedGeminiClientClass = vi.hoisted(() =>
@@ -48,7 +52,7 @@ const MockedGeminiClientClass = vi.hoisted(() =>
 );
 
 const MockedUserPromptEvent = vi.hoisted(() =>
-  vi.fn().mockImplementation(() => {}),
+  vi.fn().mockImplementation(() => { }),
 );
 const mockParseAndFormatApiError = vi.hoisted(() => vi.fn());
 
@@ -139,125 +143,6 @@ vi.mock('./slashCommandProcessor.js', () => ({
 
 // --- END MOCKS ---
 
-describe('mergePartListUnions', () => {
-  it('should merge multiple PartListUnion arrays', () => {
-    const list1: PartListUnion = [{ text: 'Hello' }];
-    const list2: PartListUnion = [
-      { inlineData: { mimeType: 'image/png', data: 'abc' } },
-    ];
-    const list3: PartListUnion = [{ text: 'World' }, { text: '!' }];
-    const result = mergePartListUnions([list1, list2, list3]);
-    expect(result).toEqual([
-      { text: 'Hello' },
-      { inlineData: { mimeType: 'image/png', data: 'abc' } },
-      { text: 'World' },
-      { text: '!' },
-    ]);
-  });
-
-  it('should handle empty arrays in the input list', () => {
-    const list1: PartListUnion = [{ text: 'First' }];
-    const list2: PartListUnion = [];
-    const list3: PartListUnion = [{ text: 'Last' }];
-    const result = mergePartListUnions([list1, list2, list3]);
-    expect(result).toEqual([{ text: 'First' }, { text: 'Last' }]);
-  });
-
-  it('should handle a single PartListUnion array', () => {
-    const list1: PartListUnion = [
-      { text: 'One' },
-      { inlineData: { mimeType: 'image/jpeg', data: 'xyz' } },
-    ];
-    const result = mergePartListUnions([list1]);
-    expect(result).toEqual(list1);
-  });
-
-  it('should return an empty array if all input arrays are empty', () => {
-    const list1: PartListUnion = [];
-    const list2: PartListUnion = [];
-    const result = mergePartListUnions([list1, list2]);
-    expect(result).toEqual([]);
-  });
-
-  it('should handle input list being empty', () => {
-    const result = mergePartListUnions([]);
-    expect(result).toEqual([]);
-  });
-
-  it('should correctly merge when PartListUnion items are single Parts not in arrays', () => {
-    const part1: Part = { text: 'Single part 1' };
-    const part2: Part = { inlineData: { mimeType: 'image/gif', data: 'gif' } };
-    const listContainingSingleParts: PartListUnion[] = [
-      part1,
-      [part2],
-      { text: 'Another single part' },
-    ];
-    const result = mergePartListUnions(listContainingSingleParts);
-    expect(result).toEqual([
-      { text: 'Single part 1' },
-      { inlineData: { mimeType: 'image/gif', data: 'gif' } },
-      { text: 'Another single part' },
-    ]);
-  });
-
-  it('should handle a mix of arrays and single parts, including empty arrays and undefined/null parts if they were possible (though PartListUnion typing restricts this)', () => {
-    const list1: PartListUnion = [{ text: 'A' }];
-    const list2: PartListUnion = [];
-    const part3: Part = { text: 'B' };
-    const list4: PartListUnion = [
-      { text: 'C' },
-      { inlineData: { mimeType: 'text/plain', data: 'D' } },
-    ];
-    const result = mergePartListUnions([list1, list2, part3, list4]);
-    expect(result).toEqual([
-      { text: 'A' },
-      { text: 'B' },
-      { text: 'C' },
-      { inlineData: { mimeType: 'text/plain', data: 'D' } },
-    ]);
-  });
-
-  it('should preserve the order of parts from the input arrays', () => {
-    const listA: PartListUnion = [{ text: '1' }, { text: '2' }];
-    const listB: PartListUnion = [{ text: '3' }];
-    const listC: PartListUnion = [{ text: '4' }, { text: '5' }];
-    const result = mergePartListUnions([listA, listB, listC]);
-    expect(result).toEqual([
-      { text: '1' },
-      { text: '2' },
-      { text: '3' },
-      { text: '4' },
-      { text: '5' },
-    ]);
-  });
-
-  it('should handle cases where some PartListUnion items are single Parts and others are arrays of Parts', () => {
-    const singlePart1: Part = { text: 'First single' };
-    const arrayPart1: Part[] = [
-      { text: 'Array item 1' },
-      { text: 'Array item 2' },
-    ];
-    const singlePart2: Part = {
-      inlineData: { mimeType: 'application/json', data: 'e30=' },
-    }; // {}
-    const arrayPart2: Part[] = [{ text: 'Last array item' }];
-
-    const result = mergePartListUnions([
-      singlePart1,
-      arrayPart1,
-      singlePart2,
-      arrayPart2,
-    ]);
-    expect(result).toEqual([
-      { text: 'First single' },
-      { text: 'Array item 1' },
-      { text: 'Array item 2' },
-      { inlineData: { mimeType: 'application/json', data: 'e30=' } },
-      { text: 'Last array item' },
-    ]);
-  });
-});
-
 // --- Tests for useGeminiStream Hook ---
 describe('useGeminiStream', () => {
   let mockAddItem: Mock;
@@ -267,7 +152,7 @@ describe('useGeminiStream', () => {
   let mockScheduleToolCalls: Mock;
   let mockCancelAllToolCalls: Mock;
   let mockMarkToolsAsSubmitted: Mock;
-  // let handleAtCommandSpy: MockInstance;
+  let handleAtCommandSpy: MockInstance;
 
   beforeEach(() => {
     vi.clearAllMocks(); // Clear mocks before each test
@@ -314,6 +199,7 @@ describe('useGeminiStream', () => {
       getProjectRoot: vi.fn(() => '/test/dir'),
       getCheckpointingEnabled: vi.fn(() => false),
       getGeminiClient: mockGetGeminiClient,
+      getApprovalMode: () => ApprovalMode.DEFAULT,
       getUsageStatisticsEnabled: () => true,
       getDebugMode: () => false,
       addHistory: vi.fn(),
@@ -351,8 +237,8 @@ describe('useGeminiStream', () => {
     } as unknown as any); // GeminiChat -> any
     mockSendMessageStream
       .mockClear()
-      .mockReturnValue((async function* () {})());
-    // handleAtCommandSpy = vi.spyOn(atCommandProcessor, 'handleAtCommand');
+      .mockReturnValue((async function* () { })());
+    handleAtCommandSpy = vi.spyOn(atCommandProcessor, 'handleAtCommand');
   });
 
   const mockLoadedSettings: LoadedSettings = {
@@ -409,12 +295,12 @@ describe('useGeminiStream', () => {
           props.handleSlashCommand,
           props.shellModeActive,
           () => 'vscode' as EditorType,
-          () => {},
+          () => { },
           () => Promise.resolve(),
           false,
-          () => {},
-          () => {},
-          () => {},
+          () => { },
+          () => { },
+          () => { },
         );
       },
       {
@@ -458,7 +344,7 @@ describe('useGeminiStream', () => {
           callId: 'call1',
           responseParts: [{ text: 'tool 1 response' }],
           error: undefined,
-          errorType: undefined,
+          errorType: undefined, // FIX: Added missing property
           resultDisplay: 'Tool 1 success display',
         },
         tool: {
@@ -507,12 +393,8 @@ describe('useGeminiStream', () => {
   });
 
   it('should submit tool responses when all tool calls are completed and ready', async () => {
-    const toolCall1ResponseParts: PartListUnion = [
-      { text: 'tool 1 final response' },
-    ];
-    const toolCall2ResponseParts: PartListUnion = [
-      { text: 'tool 2 final response' },
-    ];
+    const toolCall1ResponseParts: Part[] = [{ text: 'tool 1 final response' }];
+    const toolCall2ResponseParts: Part[] = [{ text: 'tool 2 final response' }];
     const completedToolCalls: TrackedToolCall[] = [
       {
         request: {
@@ -574,12 +456,12 @@ describe('useGeminiStream', () => {
         mockHandleSlashCommand,
         false,
         () => 'vscode' as EditorType,
-        () => {},
+        () => { },
         () => Promise.resolve(),
         false,
-        () => {},
-        () => {},
-        () => {},
+        () => { },
+        () => { },
+        () => { },
       ),
     );
 
@@ -595,10 +477,10 @@ describe('useGeminiStream', () => {
       expect(mockSendMessageStream).toHaveBeenCalledTimes(1);
     });
 
-    const expectedMergedResponse = mergePartListUnions([
-      toolCall1ResponseParts,
-      toolCall2ResponseParts,
-    ]);
+    const expectedMergedResponse = [
+      ...toolCall1ResponseParts,
+      ...toolCall2ResponseParts,
+    ];
     expect(mockSendMessageStream).toHaveBeenCalledWith(
       expectedMergedResponse,
       expect.any(AbortSignal),
@@ -653,12 +535,12 @@ describe('useGeminiStream', () => {
         mockHandleSlashCommand,
         false,
         () => 'vscode' as EditorType,
-        () => {},
+        () => { },
         () => Promise.resolve(),
         false,
-        () => {},
-        () => {},
-        () => {},
+        () => { },
+        () => { },
+        () => { },
       ),
     );
 
@@ -706,7 +588,7 @@ describe('useGeminiStream', () => {
         ],
         resultDisplay: undefined,
         error: undefined,
-        errorType: undefined,
+        errorType: undefined, // FIX: Added missing property
       },
       responseSubmittedToGemini: false,
     };
@@ -735,7 +617,7 @@ describe('useGeminiStream', () => {
         ],
         resultDisplay: undefined,
         error: undefined,
-        errorType: undefined,
+        errorType: undefined, // FIX: Added missing property
       },
       responseSubmittedToGemini: false,
     };
@@ -761,12 +643,12 @@ describe('useGeminiStream', () => {
         mockHandleSlashCommand,
         false,
         () => 'vscode' as EditorType,
-        () => {},
+        () => { },
         () => Promise.resolve(),
         false,
-        () => {},
-        () => {},
-        () => {},
+        () => { },
+        () => { },
+        () => { },
       ),
     );
 
@@ -838,7 +720,7 @@ describe('useGeminiStream', () => {
           callId: 'call1',
           responseParts: toolCallResponseParts,
           error: undefined,
-          errorType: undefined,
+          errorType: undefined, // FIX: Added missing property
           resultDisplay: 'Tool 1 success display',
         },
         endTime: Date.now(),
@@ -870,12 +752,12 @@ describe('useGeminiStream', () => {
         mockHandleSlashCommand,
         false,
         () => 'vscode' as EditorType,
-        () => {},
+        () => { },
         () => Promise.resolve(),
         false,
-        () => {},
-        () => {},
-        () => {},
+        () => { },
+        () => { },
+        () => { },
       ),
     );
 
@@ -921,8 +803,7 @@ describe('useGeminiStream', () => {
     expect(result.current.streamingState).toBe(StreamingState.Responding);
   });
 
-  // Keeping cancellation tests unrelated to vision model switching out for focus
-  /* describe('User Cancellation', () => {
+  describe('User Cancellation', () => {
     let keypressCallback: (key: any) => void;
     const mockUseKeypress = useKeypress as Mock;
 
@@ -1113,9 +994,9 @@ describe('useGeminiStream', () => {
       // Nothing should happen because the state is not `Responding`
       expect(abortSpy).not.toHaveBeenCalled();
     });
-  }); */
+  });
 
-  /* describe('Slash Command Handling', () => {
+  describe('Slash Command Handling', () => {
     it('should schedule a tool call when the command processor returns a schedule_tool action', async () => {
       const clientToolRequest: SlashCommandProcessorResult = {
         type: 'schedule_tool',
@@ -1222,9 +1103,45 @@ describe('useGeminiStream', () => {
         );
       });
     });
-  }); */
 
-  /* describe('Memory Refresh on save_memory', () => {
+    it('should not call handleSlashCommand for line comments', async () => {
+      const { result, mockSendMessageStream: localMockSendMessageStream } =
+        renderTestHook();
+
+      await act(async () => {
+        await result.current.submitQuery('// This is a line comment');
+      });
+
+      await waitFor(() => {
+        expect(mockHandleSlashCommand).not.toHaveBeenCalled();
+        expect(localMockSendMessageStream).toHaveBeenCalledWith(
+          '// This is a line comment',
+          expect.any(AbortSignal),
+          expect.any(String),
+        );
+      });
+    });
+
+    it('should not call handleSlashCommand for block comments', async () => {
+      const { result, mockSendMessageStream: localMockSendMessageStream } =
+        renderTestHook();
+
+      await act(async () => {
+        await result.current.submitQuery('/* This is a block comment */');
+      });
+
+      await waitFor(() => {
+        expect(mockHandleSlashCommand).not.toHaveBeenCalled();
+        expect(localMockSendMessageStream).toHaveBeenCalledWith(
+          '/* This is a block comment */',
+          expect.any(AbortSignal),
+          expect.any(String),
+        );
+      });
+    });
+  });
+
+  describe('Memory Refresh on save_memory', () => {
     it('should call performMemoryRefresh when a save_memory tool call completes successfully', async () => {
       const mockPerformMemoryRefresh = vi.fn();
       const completedToolCall: TrackedCompletedToolCall = {
@@ -1242,7 +1159,7 @@ describe('useGeminiStream', () => {
           responseParts: [{ text: 'Memory saved' }],
           resultDisplay: 'Success: Memory saved',
           error: undefined,
-          errorType: undefined,
+          errorType: undefined, // FIX: Added missing property
         },
         tool: {
           name: 'save_memory',
@@ -1295,9 +1212,9 @@ describe('useGeminiStream', () => {
         expect(mockPerformMemoryRefresh).toHaveBeenCalledTimes(1);
       });
     });
-  }); */
+  });
 
-  /* describe('Error Handling', () => {
+  describe('Error Handling', () => {
     it('should call parseAndFormatApiError with the correct authType on stream initialization failure', async () => {
       // 1. Setup
       const mockError = new Error('Rate limit exceeded');
@@ -1353,9 +1270,9 @@ describe('useGeminiStream', () => {
         );
       });
     });
-  }); */
+  });
 
-  /* describe('handleFinishedEvent', () => {
+  describe('handleFinishedEvent', () => {
     it('should add info message for MAX_TOKENS finish reason', async () => {
       // Setup mock to return a stream with MAX_TOKENS finish reason
       mockSendMessageStream.mockReturnValue(
@@ -1588,9 +1505,68 @@ describe('useGeminiStream', () => {
         });
       }
     });
-  }); */
+  });
 
-  /* describe('Thought Reset', () => {
+  it('should process @include commands, adding user turn after processing to prevent race conditions', async () => {
+    const rawQuery = '@include file.txt Summarize this.';
+    const processedQueryParts = [
+      { text: 'Summarize this with content from @file.txt' },
+      { text: 'File content...' },
+    ];
+    const userMessageTimestamp = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(userMessageTimestamp);
+
+    handleAtCommandSpy.mockResolvedValue({
+      processedQuery: processedQueryParts,
+      shouldProceed: true,
+    });
+
+    const { result } = renderHook(() =>
+      useGeminiStream(
+        mockConfig.getGeminiClient() as GeminiClient,
+        [],
+        mockAddItem,
+        mockConfig,
+        mockOnDebugMessage,
+        mockHandleSlashCommand,
+        false, // shellModeActive
+        vi.fn(), // getPreferredEditor
+        vi.fn(), // onAuthError
+        vi.fn(), // performMemoryRefresh
+        false, // modelSwitched
+        vi.fn(), // setModelSwitched
+        vi.fn(), // onEditorClose
+        vi.fn(), // onCancelSubmit
+      ),
+    );
+
+    await act(async () => {
+      await result.current.submitQuery(rawQuery);
+    });
+
+    expect(handleAtCommandSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: rawQuery,
+      }),
+    );
+
+    expect(mockAddItem).toHaveBeenCalledWith(
+      {
+        type: MessageType.USER,
+        text: rawQuery,
+      },
+      userMessageTimestamp,
+    );
+
+    // FIX: The expectation now matches the actual call signature.
+    expect(mockSendMessageStream).toHaveBeenCalledWith(
+      processedQueryParts, // Argument 1: The parts array directly
+      expect.any(AbortSignal), // Argument 2: An AbortSignal
+      expect.any(String), // Argument 3: The prompt_id string
+    );
+  });
+
+  describe('Thought Reset', () => {
     it('should reset thought to null when starting a new prompt', async () => {
       // First, simulate a response with a thought
       mockSendMessageStream.mockReturnValue(
@@ -1785,9 +1761,9 @@ describe('useGeminiStream', () => {
         'gemini-2.5-flash',
       );
     });
-  }); */
+  });
 
-  /* describe('Concurrent Execution Prevention', () => {
+  describe('Concurrent Execution Prevention', () => {
     it('should prevent concurrent submitQuery calls', async () => {
       let resolveFirstCall!: () => void;
       let resolveSecondCall!: () => void;
@@ -1938,7 +1914,7 @@ describe('useGeminiStream', () => {
         expect.any(String),
       );
     });
-  }); */
+  });
 
   // --- New tests focused on recent modifications ---
   describe('Vision Auto Switch Integration', () => {
@@ -1961,12 +1937,12 @@ describe('useGeminiStream', () => {
           mockHandleSlashCommand,
           false,
           () => 'vscode' as EditorType,
-          () => {},
+          () => { },
           () => Promise.resolve(),
           false,
-          () => {},
-          () => {},
-          () => {},
+          () => { },
+          () => { },
+          () => { },
         ),
       );
 
@@ -1993,12 +1969,12 @@ describe('useGeminiStream', () => {
           mockHandleSlashCommand,
           false,
           () => 'vscode' as EditorType,
-          () => {},
+          () => { },
           () => Promise.resolve(),
           false,
-          () => {},
-          () => {},
-          () => {},
+          () => { },
+          () => { },
+          () => { },
         ),
       );
 
@@ -2046,12 +2022,12 @@ describe('useGeminiStream', () => {
           mockHandleSlashCommand,
           false,
           () => 'vscode' as EditorType,
-          () => {},
+          () => { },
           () => Promise.resolve(),
           false,
-          () => {},
-          () => {},
-          () => {},
+          () => { },
+          () => { },
+          () => { },
         ),
       );
 
@@ -2083,12 +2059,12 @@ describe('useGeminiStream', () => {
           mockHandleSlashCommand,
           false,
           () => 'vscode' as EditorType,
-          () => {},
+          () => { },
           () => Promise.resolve(),
           false,
-          () => {},
-          () => {},
-          () => {},
+          () => { },
+          () => { },
+          () => { },
         ),
       );
 
@@ -2101,5 +2077,4 @@ describe('useGeminiStream', () => {
       });
     });
   });
-  // Removed unrelated @include test to keep focus strictly on vision model switching
 });

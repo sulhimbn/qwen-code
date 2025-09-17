@@ -37,14 +37,14 @@ vi.mock('tiktoken', () => ({
 
 // Now import the modules that depend on the mocked modules
 import { OpenAIContentGenerator } from './openaiContentGenerator.js';
-import { Config } from '../../config/config.js';
+import type { Config } from '../../config/config.js';
 import { AuthType } from '../contentGenerator.js';
 import type {
   GenerateContentParameters,
   CountTokensParameters,
 } from '@google/genai';
 import type { OpenAICompatibleProvider } from './provider/index.js';
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 
 describe('OpenAIContentGenerator (Refactored)', () => {
   let generator: OpenAIContentGenerator;
