@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ImageMetadata } from './types.js';
+import type { ImageMetadata } from './types.js';
 
 /**
  * Image tokenizer for calculating image tokens based on dimensions

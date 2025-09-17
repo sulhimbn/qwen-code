@@ -56,12 +56,12 @@ import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
 import { ModelSelectionDialog } from './components/ModelSelectionDialog.js';
 import {
   ModelSwitchDialog,
-  VisionSwitchOutcome,
+  type VisionSwitchOutcome,
 } from './components/ModelSwitchDialog.js';
 import {
   AVAILABLE_MODELS_QWEN,
   getOpenAIAvailableModelFromEnv,
-  AvailableModel,
+  type AvailableModel,
 } from './models/availableModels.js';
 import { processVisionSwitchOutcome } from './hooks/useVisionAutoSwitch.js';
 import {

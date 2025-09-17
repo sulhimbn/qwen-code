@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DefaultRequestTokenizer } from './requestTokenizer.js';
-import { CountTokensParameters } from '@google/genai';
+import type { CountTokensParameters } from '@google/genai';
 
 describe('DefaultRequestTokenizer', () => {
   let tokenizer: DefaultRequestTokenizer;

@@ -5,17 +5,17 @@
  */
 
 import { AuthType } from '@qwen-code/qwen-code-core';
-import {
+import type {
   SlashCommand,
   CommandContext,
-  CommandKind,
   OpenDialogActionReturn,
   MessageActionReturn,
 } from './types.js';
+import { CommandKind } from './types.js';
 import {
   AVAILABLE_MODELS_QWEN,
   getOpenAIAvailableModelFromEnv,
-  AvailableModel,
+  type AvailableModel,
 } from '../models/availableModels.js';
 
 function getAvailableModelsForAuthType(authType: AuthType): AvailableModel[] {

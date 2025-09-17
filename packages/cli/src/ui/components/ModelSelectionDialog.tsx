@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import type React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import {
@@ -12,7 +12,7 @@ import {
   type RadioSelectItem,
 } from './shared/RadioButtonSelect.js';
 import { useKeypress } from '../hooks/useKeypress.js';
-import { AvailableModel } from '../models/availableModels.js';
+import type { AvailableModel } from '../models/availableModels.js';
 
 export interface ModelSelectionDialogProps {
   availableModels: AvailableModel[];

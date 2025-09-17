@@ -7,8 +7,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { Part, PartListUnion } from '@google/genai';
-import { AuthType, Config } from '@qwen-code/qwen-code-core';
+import type { Part, PartListUnion } from '@google/genai';
+import { AuthType, type Config } from '@qwen-code/qwen-code-core';
 import {
   shouldOfferVisionSwitch,
   processVisionSwitchOutcome,

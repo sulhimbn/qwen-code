@@ -4,8 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CountTokensParameters, Content, Part, PartUnion } from '@google/genai';
-import {
+import type {
+  CountTokensParameters,
+  Content,
+  Part,
+  PartUnion,
+} from '@google/genai';
+import type {
   RequestTokenizer,
   TokenizerConfig,
   TokenCalculationResult,

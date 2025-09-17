@@ -5,7 +5,7 @@
  */
 
 import { type PartListUnion, type Part } from '@google/genai';
-import { AuthType, Config } from '@qwen-code/qwen-code-core';
+import { AuthType, type Config } from '@qwen-code/qwen-code-core';
 import { useCallback, useRef } from 'react';
 import { VisionSwitchOutcome } from '../components/ModelSwitchDialog.js';
 import {
@@ -13,7 +13,7 @@ import {
   isVisionModel,
 } from '../models/availableModels.js';
 import { MessageType } from '../types.js';
-import { UseHistoryManagerReturn } from './useHistoryManager.js';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 /**
  * Checks if a PartListUnion contains image parts

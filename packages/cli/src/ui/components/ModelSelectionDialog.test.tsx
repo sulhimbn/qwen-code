@@ -8,8 +8,8 @@ import React from 'react';
 import { render } from 'ink-testing-library';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModelSelectionDialog } from './ModelSelectionDialog.js';
-import { AvailableModel } from '../models/availableModels.js';
-import { RadioSelectItem } from './shared/RadioButtonSelect.js';
+import type { AvailableModel } from '../models/availableModels.js';
+import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
 
 // Mock the useKeypress hook
 const mockUseKeypress = vi.hoisted(() => vi.fn());
