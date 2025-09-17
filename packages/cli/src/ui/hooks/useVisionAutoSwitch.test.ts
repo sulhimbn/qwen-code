@@ -29,6 +29,7 @@ describe('useVisionAutoSwitch helpers', () => {
         parts,
         AuthType.USE_GEMINI,
         'qwen3-coder-plus',
+        true,
       );
       expect(result).toBe(false);
     });
@@ -41,6 +42,7 @@ describe('useVisionAutoSwitch helpers', () => {
         parts,
         AuthType.QWEN_OAUTH,
         'qwen-vl-max-latest',
+        true,
       );
       expect(result).toBe(false);
     });
@@ -54,6 +56,7 @@ describe('useVisionAutoSwitch helpers', () => {
         parts,
         AuthType.QWEN_OAUTH,
         'qwen3-coder-plus',
+        true,
       );
       expect(result).toBe(true);
     });
@@ -66,6 +69,7 @@ describe('useVisionAutoSwitch helpers', () => {
         singleImagePart,
         AuthType.QWEN_OAUTH,
         'qwen3-coder-plus',
+        true,
       );
       expect(result).toBe(true);
     });
@@ -76,6 +80,7 @@ describe('useVisionAutoSwitch helpers', () => {
         parts,
         AuthType.QWEN_OAUTH,
         'qwen3-coder-plus',
+        true,
       );
       expect(result).toBe(false);
     });
@@ -86,6 +91,20 @@ describe('useVisionAutoSwitch helpers', () => {
         parts,
         AuthType.QWEN_OAUTH,
         'qwen3-coder-plus',
+        true,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('returns false when visionModelPreviewEnabled is false', () => {
+      const parts: PartListUnion = [
+        { inlineData: { mimeType: 'image/png', data: '...' } },
+      ];
+      const result = shouldOfferVisionSwitch(
+        parts,
+        AuthType.QWEN_OAUTH,
+        'qwen3-coder-plus',
+        false,
       );
       expect(result).toBe(false);
     });
@@ -159,7 +178,7 @@ describe('useVisionAutoSwitch hook', () => {
   it('returns shouldProceed=true immediately for continuations', async () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, vi.fn()),
+      useVisionAutoSwitch(config, addItem as any, true, vi.fn()),
     );
 
     const parts: PartListUnion = [
@@ -177,7 +196,7 @@ describe('useVisionAutoSwitch hook', () => {
     const config = createMockConfig(AuthType.USE_GEMINI, 'qwen3-coder-plus');
     const onVisionSwitchRequired = vi.fn();
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [
@@ -195,7 +214,7 @@ describe('useVisionAutoSwitch hook', () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
     const onVisionSwitchRequired = vi.fn();
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [{ text: 'no images here' }];
@@ -213,7 +232,7 @@ describe('useVisionAutoSwitch hook', () => {
       .fn()
       .mockResolvedValue({ showGuidance: true });
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [
@@ -241,7 +260,7 @@ describe('useVisionAutoSwitch hook', () => {
       .fn()
       .mockResolvedValue({ modelOverride: 'qwen-vl-max-latest' });
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [
@@ -269,7 +288,7 @@ describe('useVisionAutoSwitch hook', () => {
       .fn()
       .mockResolvedValue({ persistSessionModel: 'qwen-vl-max-latest' });
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [
@@ -298,7 +317,7 @@ describe('useVisionAutoSwitch hook', () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
     const onVisionSwitchRequired = vi.fn().mockResolvedValue({});
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [
@@ -316,7 +335,7 @@ describe('useVisionAutoSwitch hook', () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
     const onVisionSwitchRequired = vi.fn().mockRejectedValue(new Error('x'));
     const { result } = renderHook(() =>
-      useVisionAutoSwitch(config, addItem as any, onVisionSwitchRequired),
+      useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
 
     const parts: PartListUnion = [
@@ -328,5 +347,28 @@ describe('useVisionAutoSwitch hook', () => {
     });
     expect(res).toEqual({ shouldProceed: false });
     expect(config.setModel).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when visionModelPreviewEnabled is false', async () => {
+    const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
+    const onVisionSwitchRequired = vi.fn();
+    const { result } = renderHook(() =>
+      useVisionAutoSwitch(
+        config,
+        addItem as any,
+        false,
+        onVisionSwitchRequired,
+      ),
+    );
+
+    const parts: PartListUnion = [
+      { inlineData: { mimeType: 'image/png', data: '...' } },
+    ];
+    let res: any;
+    await act(async () => {
+      res = await result.current.handleVisionSwitch(parts, 6060, false);
+    });
+    expect(res).toEqual({ shouldProceed: true });
+    expect(onVisionSwitchRequired).not.toHaveBeenCalled();
   });
 });

@@ -12,7 +12,7 @@ import {
 import type { Config } from '../../config/config.js';
 import type { ContentGeneratorConfig } from '../contentGenerator.js';
 import type { OpenAICompatibleProvider } from './provider/index.js';
-import type { OpenAIContentConverter } from './converter.js';
+import { OpenAIContentConverter } from './converter.js';
 import type { TelemetryService, RequestContext } from './telemetryService.js';
 import type { ErrorHandler } from './errorHandler.js';
 

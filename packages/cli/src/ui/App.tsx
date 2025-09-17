@@ -59,8 +59,8 @@ import {
   type VisionSwitchOutcome,
 } from './components/ModelSwitchDialog.js';
 import {
-  AVAILABLE_MODELS_QWEN,
   getOpenAIAvailableModelFromEnv,
+  getFilteredQwenModels,
   type AvailableModel,
 } from './models/availableModels.js';
 import { processVisionSwitchOutcome } from './hooks/useVisionAutoSwitch.js';
@@ -669,9 +669,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     const contentGeneratorConfig = config.getContentGeneratorConfig();
     if (!contentGeneratorConfig) return [];
 
+    const visionModelPreviewEnabled =
+      settings.merged.experimental?.visionModelPreview ?? false;
+
     switch (contentGeneratorConfig.authType) {
       case AuthType.QWEN_OAUTH:
-        return AVAILABLE_MODELS_QWEN;
+        return getFilteredQwenModels(visionModelPreviewEnabled);
       case AuthType.USE_OPENAI: {
         const openAIModel = getOpenAIAvailableModelFromEnv();
         return openAIModel ? [openAIModel] : [];
@@ -679,7 +682,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       default:
         return [];
     }
-  }, [config]);
+  }, [config, settings.merged.experimental?.visionModelPreview]);
 
   // Core hooks and processors
   const {
@@ -756,6 +759,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     setModelSwitchedFromQuotaError,
     refreshStatic,
     () => cancelHandlerRef.current(),
+    settings.merged.experimental?.visionModelPreview ?? false,
     handleVisionSwitchRequired,
   );
 

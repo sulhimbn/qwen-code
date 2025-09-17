@@ -16,6 +16,18 @@ export const AVAILABLE_MODELS_QWEN: AvailableModel[] = [
 ];
 
 /**
+ * Get available Qwen models filtered by vision model preview setting
+ */
+export function getFilteredQwenModels(
+  visionModelPreviewEnabled: boolean,
+): AvailableModel[] {
+  if (visionModelPreviewEnabled) {
+    return AVAILABLE_MODELS_QWEN;
+  }
+  return AVAILABLE_MODELS_QWEN.filter((model) => !model.isVision);
+}
+
+/**
  * Currently we use the single model of `OPENAI_MODEL` in the env.
  * In the future, after settings.json is updated, we will allow users to configure this themselves.
  */

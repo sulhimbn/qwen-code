@@ -63,9 +63,15 @@ export function shouldOfferVisionSwitch(
   parts: PartListUnion,
   authType: AuthType,
   currentModel: string,
+  visionModelPreviewEnabled: boolean = false,
 ): boolean {
   // Only trigger for qwen-oauth
   if (authType !== AuthType.QWEN_OAUTH) {
+    return false;
+  }
+
+  // If vision model preview is disabled, never offer vision switch
+  if (!visionModelPreviewEnabled) {
     return false;
   }
 
@@ -134,6 +140,7 @@ export interface VisionSwitchHandlingResult {
 export function useVisionAutoSwitch(
   config: Config,
   addItem: UseHistoryManagerReturn['addItem'],
+  visionModelPreviewEnabled: boolean = false,
   onVisionSwitchRequired?: (query: PartListUnion) => Promise<{
     modelOverride?: string;
     persistSessionModel?: string;
@@ -166,6 +173,7 @@ export function useVisionAutoSwitch(
           query,
           contentGeneratorConfig.authType,
           config.getModel(),
+          visionModelPreviewEnabled,
         )
       ) {
         return { shouldProceed: true };
@@ -206,7 +214,7 @@ export function useVisionAutoSwitch(
         return { shouldProceed: false };
       }
     },
-    [config, addItem, onVisionSwitchRequired],
+    [config, addItem, visionModelPreviewEnabled, onVisionSwitchRequired],
   );
 
   const restoreOriginalModel = useCallback(() => {
