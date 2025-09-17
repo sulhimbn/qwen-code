@@ -577,6 +577,16 @@ export const SETTINGS_SCHEMA = {
     description: 'The maximum number of tokens allowed in a session.',
     showInDialog: false,
   },
+  toolOutputCharLimit: {
+    type: 'number',
+    label: 'Tool Output Character Limit',
+    category: 'General',
+    requiresRestart: false,
+    default: undefined as number | undefined,
+    description:
+      'Max characters for tool outputs (read_file, read_many_files, shell). If set, text content is truncated to this limit.',
+    showInDialog: true,
+  },
   systemPromptMappings: {
     type: 'object',
     label: 'System Prompt Mappings',

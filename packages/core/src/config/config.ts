@@ -239,6 +239,8 @@ export interface ConfigParameters {
   shouldUseNodePtyShell?: boolean;
   skipStartupContext?: boolean;
   skipNextSpeakerCheck?: boolean;
+  // Character limit for tool text outputs (files and shell)
+  toolOutputCharLimit?: number;
 }
 
 export class Config {
@@ -326,6 +328,7 @@ export class Config {
   private readonly skipStartupContext: boolean;
   private readonly skipNextSpeakerCheck: boolean;
   private initialized: boolean = false;
+  private readonly toolOutputCharLimit?: number;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -407,6 +410,7 @@ export class Config {
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
     this.skipStartupContext = params.skipStartupContext ?? true;
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? true;
+    this.toolOutputCharLimit = params.toolOutputCharLimit;
 
     // Web search
     this.tavilyApiKey = params.tavilyApiKey;
@@ -871,6 +875,14 @@ export class Config {
 
   getSkipNextSpeakerCheck(): boolean {
     return this.skipNextSpeakerCheck;
+  }
+
+  /**
+   * Returns the configured maximum number of characters for tool outputs.
+   * If undefined, no character-based truncation is applied by tools.
+   */
+  getToolOutputCharLimit(): number | undefined {
+    return this.toolOutputCharLimit;
   }
 
   async getGitService(): Promise<GitService> {

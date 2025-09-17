@@ -122,21 +122,31 @@ class ReadFileToolInvocation extends BaseToolInvocation<
     }
 
     let llmContent: PartUnion;
+    const charLimit = this.config.getToolOutputCharLimit();
     if (result.isTruncated) {
       const [start, end] = result.linesShown!;
       const total = result.originalLineCount!;
       const nextOffset = this.params.offset
         ? this.params.offset + end - start + 1
         : end;
-      llmContent = `
-IMPORTANT: The file content has been truncated.
-Status: Showing lines ${start}-${end} of ${total} total lines.
-Action: To read more of the file, you can use the 'offset' and 'limit' parameters in a subsequent 'read_file' call. For example, to read the next section of the file, use offset: ${nextOffset}.
-
---- FILE CONTENT (truncated) ---
-${result.llmContent}`;
+      const header = `\nIMPORTANT: The file content has been truncated.\nStatus: Showing lines ${start}-${end} of ${total} total lines.\nAction: To read more of the file, you can use the 'offset' and 'limit' parameters in a subsequent 'read_file' call. For example, to read the next section of the file, use offset: ${nextOffset}.\n\n--- FILE CONTENT (truncated) ---\n`;
+      const body = typeof result.llmContent === 'string' ? result.llmContent : '';
+      let truncatedBody = body;
+      if (typeof charLimit === 'number' && charLimit > 0 && body.length > charLimit) {
+        truncatedBody = `${body.slice(0, charLimit)}\n[... File content truncated to ${charLimit} characters ...]`;
+      }
+      llmContent = header + truncatedBody;
     } else {
-      llmContent = result.llmContent || '';
+      let body = result.llmContent || '';
+      if (
+        typeof body === 'string' &&
+        typeof charLimit === 'number' &&
+        charLimit > 0 &&
+        body.length > charLimit
+      ) {
+        body = `${body.slice(0, charLimit)}\n[... File content truncated to ${charLimit} characters ...]`;
+      }
+      llmContent = body;
     }
 
     const lines =

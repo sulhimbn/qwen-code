@@ -228,6 +228,7 @@ ${finalExclusionPatternsForDescription
     const skippedFiles: Array<{ path: string; reason: string }> = [];
     const processedFilesRelativePaths: string[] = [];
     const contentParts: PartListUnion = [];
+    const charLimit = this.config.getToolOutputCharLimit();
 
     const effectiveExcludes = useDefaultExcludes
       ? [...DEFAULT_EXCLUDES, ...exclude]
@@ -436,6 +437,9 @@ ${finalExclusionPatternsForDescription
     );
 
     const results = await Promise.allSettled(fileProcessingPromises);
+    let remainingContentChars =
+      typeof charLimit === 'number' && charLimit > 0 ? charLimit : Number.POSITIVE_INFINITY;
+    let globalTruncated = false;
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
@@ -449,22 +453,47 @@ ${finalExclusionPatternsForDescription
           });
         } else {
           // Handle successfully processed files
-          const { filePath, relativePathForDisplay, fileReadResult } =
-            fileResult;
+          const { filePath, relativePathForDisplay, fileReadResult } = fileResult;
 
           if (typeof fileReadResult.llmContent === 'string') {
+            // Separator does not count toward char budget
             const separator = DEFAULT_OUTPUT_SEPARATOR_FORMAT.replace(
               '{filePath}',
               filePath,
             );
-            let fileContentForLlm = '';
+
+            let prefix = `${separator}\n\n`;
+            // Warning header (if any) does not count toward char budget
             if (fileReadResult.isTruncated) {
-              fileContentForLlm += `[WARNING: This file was truncated. To view the full content, use the 'read_file' tool on this specific file.]\n\n`;
+              prefix += `[WARNING: This file was truncated. To view the full content, use the 'read_file' tool on this specific file.]\n\n`;
             }
-            fileContentForLlm += fileReadResult.llmContent;
-            contentParts.push(`${separator}\n\n${fileContentForLlm}\n\n`);
+            contentParts.push(prefix);
+
+            // Apply global char budget to the actual file content only
+            if (remainingContentChars > 0) {
+              const body = fileReadResult.llmContent;
+              if (body.length <= remainingContentChars) {
+                contentParts.push(body + '\n\n');
+                remainingContentChars -= body.length;
+              } else {
+                contentParts.push(
+                  body.slice(0, Math.max(0, remainingContentChars)),
+                );
+                contentParts.push(
+                  `\n[... Content truncated to ${charLimit} characters across files ...]\n`,
+                );
+                remainingContentChars = 0;
+                globalTruncated = true;
+              }
+            } else if (!globalTruncated && typeof charLimit === 'number') {
+              // No remaining budget, emit a single global truncation marker after first overflow
+              contentParts.push(
+                `\n[... Content truncated to ${charLimit} characters across files ...]\n`,
+              );
+              globalTruncated = true;
+            }
           } else {
-            // This is a Part for image/pdf, which we don't add the separator to.
+            // Non-text parts (image/pdf) do not count toward char budget
             contentParts.push(fileReadResult.llmContent);
           }
 
@@ -538,6 +567,10 @@ ${finalExclusionPatternsForDescription
         'No files matching the criteria were found or all were skipped.',
       );
     }
+    if (globalTruncated && typeof charLimit === 'number') {
+      displayMessage += `\n\nNote: Output truncated to ${charLimit} characters (text content only).`;
+    }
+
     return {
       llmContent: contentParts,
       returnDisplay: displayMessage.trim(),

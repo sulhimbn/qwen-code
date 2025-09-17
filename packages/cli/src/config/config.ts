@@ -605,6 +605,7 @@ export async function loadCliConfig(
     shouldUseNodePtyShell: settings.shouldUseNodePtyShell,
     skipStartupContext: settings.skipStartupContext,
     skipNextSpeakerCheck: settings.skipNextSpeakerCheck,
+    toolOutputCharLimit: settings.toolOutputCharLimit,
   });
 }
 

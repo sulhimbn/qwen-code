@@ -279,6 +279,24 @@ class ShellToolInvocation extends BaseToolInvocation<
         }
       }
 
+      // Apply character truncation (middle) to both llmContent and returnDisplay if configured
+      const charLimit = this.config.getToolOutputCharLimit();
+      const middleTruncate = (s: string, limit: number): string => {
+        if (!s || s.length <= limit) return s;
+        const marker = '\n[... Output truncated due to length ...]\n';
+        const keep = Math.max(0, Math.floor((limit - marker.length) / 2));
+        if (keep <= 0) {
+          return s.slice(0, limit);
+        }
+        return s.slice(0, keep) + marker + s.slice(s.length - keep);
+      };
+      if (typeof charLimit === 'number' && charLimit > 0) {
+        llmContent = middleTruncate(llmContent, charLimit);
+        if (returnDisplayMessage) {
+          returnDisplayMessage = middleTruncate(returnDisplayMessage, charLimit);
+        }
+      }
+
       const summarizeConfig = this.config.getSummarizeToolOutputConfig();
       if (summarizeConfig && summarizeConfig[ShellTool.Name]) {
         const summary = await summarizeToolOutput(
