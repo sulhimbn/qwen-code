@@ -91,6 +91,7 @@ export function getCustomSystemPrompt(
 export function getCoreSystemPrompt(
   userMemory?: string,
   config?: SystemPromptConfig,
+  model?: string,
 ): string {
   // if GEMINI_SYSTEM_MD is set (and not 0|false), override system prompt from file
   // default path is .gemini/system.md but can be modified via custom path in GEMINI_SYSTEM_MD
@@ -338,154 +339,7 @@ ${(function () {
   return '';
 })()}
 
-# Examples (Illustrating Tone and Workflow)
-<example>
-user: 1 + 2
-model: 3
-</example>
-
-<example>
-user: is 13 a prime number?
-model: true
-</example>
-
-<example>
-user: start the server implemented in server.js
-model: 
-<tool_call>
-<function=run_shell_command>
-<parameter=command>
-node server.js &
-</parameter>
-</function>
-</tool_call>
-</example>
-
-<example>
-user: Refactor the auth logic in src/auth.py to use the requests library instead of urllib.
-model: Okay, I can refactor 'src/auth.py'.
-First, I'll analyze the code and check for a test safety net before planning any changes.
-<tool_call>
-<function=glob>
-<parameter=path>
-tests/test_auth.py
-</parameter>
-</function>
-</tool_call>
-<tool_call>
-<function=read_file>
-<parameter=path>
-/path/to/tests/test_auth.py
-</parameter>
-<parameter=offset>
-0
-</parameter>
-<parameter=limit>
-10
-</parameter>
-</function>
-</tool_call>
-(After analysis)
-Great, 'tests/test_auth.py' exists and covers the core authentication logic. With this safety net in place, I can safely plan the refactoring.
-I'll also confirm 'requests' is a dependency.
-<tool_call>
-<function=read_file>
-<parameter=path>
-/path/to/requirements.txt
-</parameter>
-</function>
-</tool_call>
-(After analysis)
-Looks good, 'requests' is available.
-
-Here's the plan:
-1.  Replace the 'urllib' calls with 'requests'.
-2.  Add proper 'try...except' error handling for the new network calls.
-3.  Remove the old 'urllib' import.
-4.  Run the project's linter and tests to verify the changes.
-
-<tool_call>
-<function=replace>
-<parameter=path>
-src/auth.py
-</parameter>
-<parameter=old_content>
-(old code content)
-</parameter>
-<parameter=new_content>
-(new code content)
-</parameter>
-</function>
-</tool_call>
-Refactoring complete. Running verification...
-<tool_call>
-<function=run_shell_command
-<parameter=command>
-ruff check src/auth.py && pytest
-</parameter>
-</function>
-</tool_call>
-(After verification passes)
-All checks passed. This is a stable checkpoint.
-Would you like me to write a commit message and commit these changes?
-</example>
-
-<example>
-user: Delete the temp directory.
-model: I can run \`rm -rf /path/to/project/temp\`. This will permanently delete the directory and all its contents.
-</example>
-
-<example>
-user: Write tests for someFile.ts
-model:
-Okay, I can write those tests. First, I'll read someFile.ts to understand its functionality.
-<tool_call>
-<function=read_file>
-<parameter=path>
-/path/to/someFile.ts
-</parameter>
-</function>
-</tool_call>
-Now I'll look for existing or related test files to understand current testing conventions and dependencies.
-<tool_call>
-<function>read_many_files for paths ['**/*.test.ts', 'src/**/*.spec.ts'] assuming someFile.ts is in the src directory]
-</tool_call>
-(After reviewing existing tests and the file content)
-<tool_call>
-<function=write_file>
-<parameter=path>
-/path/to/someFile.test.ts
-</parameter>
-</function>
-</tool_call>
-I've written the tests. Now I'll run the project's test command to verify them.
-<tool_call>
-<function=run_shell_command>
-<parameter=command>
-npm run test
-</parameter>
-</function>
-</tool_call>
-(After verification passes)
-All checks passed. This is a stable checkpoint.
-</example>
-
-<example>
-user: Where are all the 'app.config' files in this project? I need to check their settings.
-model:
-<tool_call>
-<function=glob>
-<parameter=pattern>
-./**/app.config
-</parameter>
-</function>
-</tool_call>
-(Assuming GlobTool returns a list of paths like ['/path/to/moduleA/app.config', '/path/to/moduleB/app.config'])
-I found the following 'app.config' files:
-- /path/to/moduleA/app.config
-- /path/to/moduleB/app.config
-To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
-</example>
+${getToolCallExamples(model || '')}
 
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use '${ReadFileTool.Name}' or '${ReadManyFilesTool.Name}' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved.
@@ -614,4 +468,342 @@ You are a specialized context summarizer that creates a comprehensive markdown s
 <!-- Example: 1. [DONE] Set up WebSocket server -->
 
 `.trim();
+}
+
+const generatlToolCallExamples = `
+# Examples (Illustrating Tone and Workflow)
+<example>
+user: 1 + 2
+model: 3
+</example>
+
+<example>
+user: is 13 a prime number?
+model: true
+</example>
+
+<example>
+user: start the server implemented in server.js
+model: [tool_call: ${ShellTool.Name} for 'node server.js &' because it must run in the background]
+</example>
+
+<example>
+user: Refactor the auth logic in src/auth.py to use the requests library instead of urllib.
+model: Okay, I can refactor 'src/auth.py'.
+First, I'll analyze the code and check for a test safety net before planning any changes.
+[tool_call: ${GlobTool.Name} for path 'tests/test_auth.py']
+[tool_call: ${ReadFileTool.Name} for path '/path/to/tests/test_auth.py' with offset 0 and limit 10]
+(After analysis)
+Great, 'tests/test_auth.py' exists and covers the core authentication logic. With this safety net in place, I can safely plan the refactoring.
+I'll also confirm 'requests' is a dependency.
+[tool_call: ${ReadFileTool.Name} for path '/path/to/requirements.txt']
+(After analysis)
+Looks good, 'requests' is available.
+
+Here's the plan:
+1.  Replace the 'urllib' calls with 'requests'.
+2.  Add proper 'try...except' error handling for the new network calls.
+3.  Remove the old 'urllib' import.
+4.  Run the project's linter and tests to verify the changes.
+
+[tool_call: ${EditTool.Name} for path 'src/auth.py' replacing old content with new content]
+Refactoring complete. Running verification...
+[tool_call: ${ShellTool.Name} for 'ruff check src/auth.py && pytest']
+(After verification passes)
+All checks passed. This is a stable checkpoint.
+Would you like me to write a commit message and commit these changes?
+</example>
+
+<example>
+user: Delete the temp directory.
+model: I can run \`rm -rf /path/to/project/temp\`. This will permanently delete the directory and all its contents.
+</example>
+
+<example>
+user: Write tests for someFile.ts
+model:
+Okay, I can write those tests. First, I'll read someFile.ts to understand its functionality.
+[tool_call: ${ReadFileTool.Name} for path '/path/to/someFile.ts']
+Now I'll look for existing or related test files to understand current testing conventions and dependencies.
+[tool_call: ${ReadManyFilesTool.Name} for paths ['**/*.test.ts', 'src/**/*.spec.ts']]
+(After reviewing existing tests and the file content)
+[tool_call: ${WriteFileTool.Name} for path '/path/to/someFile.test.ts']
+I've written the tests. Now I'll run the project's test command to verify them.
+[tool_call: ${ShellTool.Name} for 'npm run test']
+(After verification passes)
+All checks passed. This is a stable checkpoint.
+</example>
+
+<example>
+user: Where are all the 'app.config' files in this project? I need to check their settings.
+model:
+[tool_call: ${GlobTool.Name} for pattern './**/app.config']
+(Assuming GlobTool returns a list of paths like ['/path/to/moduleA/app.config', '/path/to/moduleB/app.config'])
+I found the following 'app.config' files:
+- /path/to/moduleA/app.config
+- /path/to/moduleB/app.config
+To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
+</example>
+`.trim();
+
+const qwenCoderToolCallExamples = `
+# Examples (Illustrating Tone and Workflow)
+<example>
+user: 1 + 2
+model: 3
+</example>
+
+<example>
+user: is 13 a prime number?
+model: true
+</example>
+
+<example>
+user: start the server implemented in server.js
+model: 
+<tool_call>
+<function=${ShellTool.Name}>
+<parameter=command>
+node server.js &
+</parameter>
+</function>
+</tool_call>
+</example>
+
+<example>
+user: Refactor the auth logic in src/auth.py to use the requests library instead of urllib.
+model: Okay, I can refactor 'src/auth.py'.
+First, I'll analyze the code and check for a test safety net before planning any changes.
+<tool_call>
+<function=${GlobTool.Name}>
+<parameter=path>
+tests/test_auth.py
+</parameter>
+</function>
+</tool_call>
+<tool_call>
+<function=${ReadFileTool.Name}>
+<parameter=path>
+/path/to/tests/test_auth.py
+</parameter>
+<parameter=offset>
+0
+</parameter>
+<parameter=limit>
+10
+</parameter>
+</function>
+</tool_call>
+(After analysis)
+Great, 'tests/test_auth.py' exists and covers the core authentication logic. With this safety net in place, I can safely plan the refactoring.
+I'll also confirm 'requests' is a dependency.
+<tool_call>
+<function=${ReadFileTool.Name}>
+<parameter=path>
+/path/to/requirements.txt
+</parameter>
+</function>
+</tool_call>
+(After analysis)
+Looks good, 'requests' is available.
+
+Here's the plan:
+1.  Replace the 'urllib' calls with 'requests'.
+2.  Add proper 'try...except' error handling for the new network calls.
+3.  Remove the old 'urllib' import.
+4.  Run the project's linter and tests to verify the changes.
+
+<tool_call>
+<function=${EditTool.Name}>
+<parameter=path>
+src/auth.py
+</parameter>
+<parameter=old_content>
+(old code content)
+</parameter>
+<parameter=new_content>
+(new code content)
+</parameter>
+</function>
+</tool_call>
+Refactoring complete. Running verification...
+<tool_call>
+<function=${ShellTool.Name}>
+<parameter=command>
+ruff check src/auth.py && pytest
+</parameter>
+</function>
+</tool_call>
+(After verification passes)
+All checks passed. This is a stable checkpoint.
+Would you like me to write a commit message and commit these changes?
+</example>
+
+<example>
+user: Delete the temp directory.
+model: I can run \`rm -rf /path/to/project/temp\`. This will permanently delete the directory and all its contents.
+</example>
+
+<example>
+user: Write tests for someFile.ts
+model:
+Okay, I can write those tests. First, I'll read someFile.ts to understand its functionality.
+<tool_call>
+<function=${ReadFileTool.Name}>
+<parameter=path>
+/path/to/someFile.ts
+</parameter>
+</function>
+</tool_call>
+Now I'll look for existing or related test files to understand current testing conventions and dependencies.
+<tool_call>
+<function=${ReadManyFilesTool.Name}>
+<parameter=paths>
+['**/*.test.ts', 'src/**/*.spec.ts']
+</parameter>
+</function>
+</tool_call>
+(After reviewing existing tests and the file content)
+<tool_call>
+<function=${WriteFileTool.Name}>
+<parameter=path>
+/path/to/someFile.test.ts
+</parameter>
+</function>
+</tool_call>
+I've written the tests. Now I'll run the project's test command to verify them.
+<tool_call>
+<function=${ShellTool.Name}>
+<parameter=command>
+npm run test
+</parameter>
+</function>
+</tool_call>
+(After verification passes)
+All checks passed. This is a stable checkpoint.
+</example>
+
+<example>
+user: Where are all the 'app.config' files in this project? I need to check their settings.
+model:
+<tool_call>
+<function=${GlobTool.Name}>
+<parameter=pattern>
+./**/app.config
+</parameter>
+</function>
+</tool_call>
+(Assuming GlobTool returns a list of paths like ['/path/to/moduleA/app.config', '/path/to/moduleB/app.config'])
+I found the following 'app.config' files:
+- /path/to/moduleA/app.config
+- /path/to/moduleB/app.config
+To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
+</example>
+`.trim();
+const qwenVlToolCallExamples = `
+# Examples (Illustrating Tone and Workflow)
+<example>
+user: 1 + 2
+model: 3
+</example>
+
+<example>
+user: is 13 a prime number?
+model: true
+</example>
+
+<example>
+user: start the server implemented in server.js
+model: 
+<tool_call>
+{"name": "${ShellTool.Name}", "arguments": {"command": "node server.js &"}}
+</tool_call>
+</example>
+
+<example>
+user: Refactor the auth logic in src/auth.py to use the requests library instead of urllib.
+model: Okay, I can refactor 'src/auth.py'.
+First, I'll analyze the code and check for a test safety net before planning any changes.
+<tool_call>
+{"name": "${GlobTool.Name}", "arguments": {"path": "tests/test_auth.py"}}
+</tool_call>
+<tool_call>
+{"name": "${ReadFileTool.Name}", "arguments": {"path": "/path/to/tests/test_auth.py", "offset": 0, "limit": 10}}
+</tool_call>
+(After analysis)
+Great, 'tests/test_auth.py' exists and covers the core authentication logic. With this safety net in place, I can safely plan the refactoring.
+I'll also confirm 'requests' is a dependency.
+<tool_call>
+{"name": "${ReadFileTool.Name}", "arguments": {"path": "/path/to/requirements.txt"}}
+</tool_call>
+(After analysis)
+Looks good, 'requests' is available.
+
+Here's the plan:
+1.  Replace the 'urllib' calls with 'requests'.
+2.  Add proper 'try...except' error handling for the new network calls.
+3.  Remove the old 'urllib' import.
+4.  Run the project's linter and tests to verify the changes.
+
+<tool_call>
+{"name": "${EditTool.Name}", "arguments": {"path": "src/auth.py", "old_content": "(old code content)", "new_content": "(new code content)"}}
+</tool_call>
+Refactoring complete. Running verification...
+<tool_call>
+{"name": "${ShellTool.Name}", "arguments": {"command": "ruff check src/auth.py && pytest"}}
+</tool_call>
+(After verification passes)
+All checks passed. This is a stable checkpoint.
+Would you like me to write a commit message and commit these changes?
+</example>
+
+<example>
+user: Delete the temp directory.
+model: I can run \`rm -rf /path/to/project/temp\`. This will permanently delete the directory and all its contents.
+</example>
+
+<example>
+user: Write tests for someFile.ts
+model:
+Okay, I can write those tests. First, I'll read someFile.ts to understand its functionality.
+<tool_call>
+{"name": "${ReadFileTool.Name}", "arguments": {"path": "/path/to/someFile.ts"}}
+</tool_call>
+Now I'll look for existing or related test files to understand current testing conventions and dependencies.
+<tool_call>
+{"name": "${ReadManyFilesTool.Name}", "arguments": {"paths": ["**/*.test.ts", "src/**/*.spec.ts"]}}
+</tool_call>
+(After reviewing existing tests and the file content)
+<tool_call>
+{"name": "${WriteFileTool.Name}", "arguments": {"path": "/path/to/someFile.test.ts"}}
+</tool_call>
+I've written the tests. Now I'll run the project's test command to verify them.
+<tool_call>
+{"name": "${ShellTool.Name}", "arguments": {"command": "npm run test"}}
+</tool_call>
+(After verification passes)
+All checks passed. This is a stable checkpoint.
+</example>
+
+<example>
+user: Where are all the 'app.config' files in this project? I need to check their settings.
+model:
+<tool_call>
+{"name": "${GlobTool.Name}", "arguments": {"pattern": "./**/app.config"}}
+</tool_call>
+(Assuming GlobTool returns a list of paths like ['/path/to/moduleA/app.config', '/path/to/moduleB/app.config'])
+I found the following 'app.config' files:
+- /path/to/moduleA/app.config
+- /path/to/moduleB/app.config
+To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
+</example>
+`.trim();
+
+function getToolCallExamples(model?: string): string {
+  if (model?.includes('qwen3-coder')) {
+    return qwenCoderToolCallExamples;
+  } else if (model?.includes('qwen-vl')) {
+    return qwenVlToolCallExamples;
+  }
+  return generatlToolCallExamples;
 }
