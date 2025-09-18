@@ -14,6 +14,10 @@ import {
 } from '../models/availableModels.js';
 import { MessageType } from '../types.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
+import {
+  isSupportedImageMimeType,
+  getUnsupportedImageFormatWarning,
+} from '@qwen-code/qwen-code-core';
 
 /**
  * Checks if a PartListUnion contains image parts
@@ -54,6 +58,60 @@ function isImagePart(part: Part): boolean {
   }
 
   return false;
+}
+
+/**
+ * Checks if image parts have supported formats and returns unsupported ones
+ */
+function checkImageFormatsSupport(parts: PartListUnion): {
+  hasImages: boolean;
+  hasUnsupportedFormats: boolean;
+  unsupportedMimeTypes: string[];
+} {
+  const unsupportedMimeTypes: string[] = [];
+  let hasImages = false;
+
+  if (typeof parts === 'string') {
+    return {
+      hasImages: false,
+      hasUnsupportedFormats: false,
+      unsupportedMimeTypes: [],
+    };
+  }
+
+  const partsArray = Array.isArray(parts) ? parts : [parts];
+
+  for (const part of partsArray) {
+    if (typeof part === 'string') continue;
+
+    let mimeType: string | undefined;
+
+    // Check inlineData
+    if (
+      'inlineData' in part &&
+      part.inlineData?.mimeType?.startsWith('image/')
+    ) {
+      hasImages = true;
+      mimeType = part.inlineData.mimeType;
+    }
+
+    // Check fileData
+    if ('fileData' in part && part.fileData?.mimeType?.startsWith('image/')) {
+      hasImages = true;
+      mimeType = part.fileData.mimeType;
+    }
+
+    // Check if the mime type is supported
+    if (mimeType && !isSupportedImageMimeType(mimeType)) {
+      unsupportedMimeTypes.push(mimeType);
+    }
+  }
+
+  return {
+    hasImages,
+    hasUnsupportedFormats: unsupportedMimeTypes.length > 0,
+    unsupportedMimeTypes,
+  };
 }
 
 /**
@@ -165,6 +223,21 @@ export function useVisionAutoSwitch(
       // Only handle qwen-oauth auth type
       if (contentGeneratorConfig?.authType !== AuthType.QWEN_OAUTH) {
         return { shouldProceed: true };
+      }
+
+      // Check image format support first
+      const formatCheck = checkImageFormatsSupport(query);
+
+      // If there are unsupported image formats, show warning
+      if (formatCheck.hasUnsupportedFormats) {
+        addItem(
+          {
+            type: MessageType.INFO,
+            text: getUnsupportedImageFormatWarning(),
+          },
+          userMessageTimestamp,
+        );
+        // Continue processing but with warning shown
       }
 
       // Check if vision switch is needed

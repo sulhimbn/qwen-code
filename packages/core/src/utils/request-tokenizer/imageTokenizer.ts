@@ -5,6 +5,7 @@
  */
 
 import type { ImageMetadata } from './types.js';
+import { isSupportedImageMimeType } from './supportedImageFormats.js';
 
 /**
  * Image tokenizer for calculating image tokens based on dimensions
@@ -14,7 +15,7 @@ import type { ImageMetadata } from './types.js';
  * - Minimum: 4 tokens per image
  * - Maximum: 16384 tokens per image
  * - Additional: 2 special tokens (vision_bos + vision_eos)
- * - Supports: PNG, JPEG, WebP, GIF formats
+ * - Supports: PNG, JPEG, WebP, GIF, BMP, TIFF, HEIC formats
  */
 export class ImageTokenizer {
   /** 28x28 pixels = 1 token */
@@ -41,6 +42,18 @@ export class ImageTokenizer {
     mimeType: string,
   ): Promise<ImageMetadata> {
     try {
+      // Check if the MIME type is supported
+      if (!isSupportedImageMimeType(mimeType)) {
+        console.warn(`Unsupported image format: ${mimeType}`);
+        // Return default metadata for unsupported formats
+        return {
+          width: 512,
+          height: 512,
+          mimeType,
+          dataSize: Math.floor(base64Data.length * 0.75),
+        };
+      }
+
       const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
       const buffer = Buffer.from(cleanBase64, 'base64');
       const dimensions = await this.extractDimensions(buffer, mimeType);
@@ -88,6 +101,18 @@ export class ImageTokenizer {
 
     if (mimeType.includes('gif')) {
       return this.extractGifDimensions(buffer);
+    }
+
+    if (mimeType.includes('bmp')) {
+      return this.extractBmpDimensions(buffer);
+    }
+
+    if (mimeType.includes('tiff')) {
+      return this.extractTiffDimensions(buffer);
+    }
+
+    if (mimeType.includes('heic')) {
+      return this.extractHeicDimensions(buffer);
     }
 
     return { width: 512, height: 512 };
@@ -305,5 +330,176 @@ export class ImageTokenizer {
     }
 
     return results;
+  }
+
+  /**
+   * Extract BMP dimensions from header
+   * BMP signature: 42 4D (BM)
+   * Width/height at bytes 18-21 and 22-25 (little-endian)
+   */
+  private extractBmpDimensions(buffer: Buffer): {
+    width: number;
+    height: number;
+  } {
+    if (buffer.length < 26) {
+      throw new Error('Invalid BMP: buffer too short');
+    }
+
+    // Verify BMP signature
+    if (buffer[0] !== 0x42 || buffer[1] !== 0x4d) {
+      throw new Error('Invalid BMP signature');
+    }
+
+    const width = buffer.readUInt32LE(18);
+    const height = buffer.readUInt32LE(22);
+
+    return { width, height: Math.abs(height) }; // Height can be negative for top-down BMPs
+  }
+
+  /**
+   * Extract TIFF dimensions from IFD (Image File Directory)
+   * TIFF can be little-endian (II) or big-endian (MM)
+   * Width/height are stored in IFD entries with tags 0x0100 and 0x0101
+   */
+  private extractTiffDimensions(buffer: Buffer): {
+    width: number;
+    height: number;
+  } {
+    if (buffer.length < 8) {
+      throw new Error('Invalid TIFF: buffer too short');
+    }
+
+    // Check byte order
+    const byteOrder = buffer.subarray(0, 2).toString('ascii');
+    const isLittleEndian = byteOrder === 'II';
+    const isBigEndian = byteOrder === 'MM';
+
+    if (!isLittleEndian && !isBigEndian) {
+      throw new Error('Invalid TIFF byte order');
+    }
+
+    // Read magic number (should be 42)
+    const magic = isLittleEndian
+      ? buffer.readUInt16LE(2)
+      : buffer.readUInt16BE(2);
+    if (magic !== 42) {
+      throw new Error('Invalid TIFF magic number');
+    }
+
+    // Read IFD offset
+    const ifdOffset = isLittleEndian
+      ? buffer.readUInt32LE(4)
+      : buffer.readUInt32BE(4);
+
+    if (ifdOffset >= buffer.length) {
+      throw new Error('Invalid TIFF IFD offset');
+    }
+
+    // Read number of directory entries
+    const numEntries = isLittleEndian
+      ? buffer.readUInt16LE(ifdOffset)
+      : buffer.readUInt16BE(ifdOffset);
+
+    let width = 0;
+    let height = 0;
+
+    // Parse IFD entries
+    for (let i = 0; i < numEntries; i++) {
+      const entryOffset = ifdOffset + 2 + i * 12;
+
+      if (entryOffset + 12 > buffer.length) break;
+
+      const tag = isLittleEndian
+        ? buffer.readUInt16LE(entryOffset)
+        : buffer.readUInt16BE(entryOffset);
+
+      const type = isLittleEndian
+        ? buffer.readUInt16LE(entryOffset + 2)
+        : buffer.readUInt16BE(entryOffset + 2);
+
+      const value = isLittleEndian
+        ? buffer.readUInt32LE(entryOffset + 8)
+        : buffer.readUInt32BE(entryOffset + 8);
+
+      if (tag === 0x0100) {
+        // ImageWidth
+        width = type === 3 ? value : value; // SHORT or LONG
+      } else if (tag === 0x0101) {
+        // ImageLength (height)
+        height = type === 3 ? value : value; // SHORT or LONG
+      }
+
+      if (width > 0 && height > 0) break;
+    }
+
+    if (width === 0 || height === 0) {
+      throw new Error('Could not find TIFF dimensions');
+    }
+
+    return { width, height };
+  }
+
+  /**
+   * Extract HEIC dimensions from meta box
+   * HEIC is based on ISO Base Media File Format
+   * This is a simplified implementation that looks for 'ispe' (Image Spatial Extents) box
+   */
+  private extractHeicDimensions(buffer: Buffer): {
+    width: number;
+    height: number;
+  } {
+    if (buffer.length < 12) {
+      throw new Error('Invalid HEIC: buffer too short');
+    }
+
+    // Check for ftyp box with HEIC brand
+    const ftypBox = buffer.subarray(4, 8).toString('ascii');
+    if (ftypBox !== 'ftyp') {
+      throw new Error('Invalid HEIC: missing ftyp box');
+    }
+
+    const brand = buffer.subarray(8, 12).toString('ascii');
+    if (!['heic', 'heix', 'hevc', 'hevx'].includes(brand)) {
+      throw new Error('Invalid HEIC brand');
+    }
+
+    // Look for meta box and then ispe box
+    let offset = 0;
+    while (offset < buffer.length - 8) {
+      const boxSize = buffer.readUInt32BE(offset);
+      const boxType = buffer.subarray(offset + 4, offset + 8).toString('ascii');
+
+      if (boxType === 'meta') {
+        // Look for ispe box inside meta box
+        const metaOffset = offset + 8;
+        let innerOffset = metaOffset + 4; // Skip version and flags
+
+        while (innerOffset < offset + boxSize - 8) {
+          const innerBoxSize = buffer.readUInt32BE(innerOffset);
+          const innerBoxType = buffer
+            .subarray(innerOffset + 4, innerOffset + 8)
+            .toString('ascii');
+
+          if (innerBoxType === 'ispe') {
+            // Found Image Spatial Extents box
+            if (innerOffset + 20 <= buffer.length) {
+              const width = buffer.readUInt32BE(innerOffset + 12);
+              const height = buffer.readUInt32BE(innerOffset + 16);
+              return { width, height };
+            }
+          }
+
+          if (innerBoxSize === 0) break;
+          innerOffset += innerBoxSize;
+        }
+      }
+
+      if (boxSize === 0) break;
+      offset += boxSize;
+    }
+
+    // Fallback: return default dimensions if we can't parse the structure
+    console.warn('Could not extract HEIC dimensions, using default');
+    return { width: 512, height: 512 };
   }
 }
