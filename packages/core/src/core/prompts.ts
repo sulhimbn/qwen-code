@@ -811,13 +811,13 @@ function getToolCallExamples(model?: string): string {
   }
 
   // Enhanced regex-based model detection
-  if (model) {
+  if (model && model.length < 100) {
     // Match qwen*-coder patterns (e.g., qwen3-coder, qwen2.5-coder, qwen-coder)
-    if (/qwen.*-coder/i.test(model)) {
+    if (/qwen[^-]*-coder/i.test(model)) {
       return qwenCoderToolCallExamples;
     }
     // Match qwen*-vl patterns (e.g., qwen-vl, qwen2-vl, qwen3-vl)
-    if (/qwen.*-vl/i.test(model)) {
+    if (/qwen[^-]*-vl/i.test(model)) {
       return qwenVlToolCallExamples;
     }
   }
