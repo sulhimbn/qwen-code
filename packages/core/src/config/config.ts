@@ -61,6 +61,7 @@ import { Storage } from './storage.js';
 export type { AnyToolInvocation, MCPOAuthConfig };
 
 export enum ApprovalMode {
+  PLAN = 'plan',
   DEFAULT = 'default',
   AUTO_EDIT = 'autoEdit',
   YOLO = 'yolo',
@@ -651,7 +652,11 @@ export class Config {
   }
 
   setApprovalMode(mode: ApprovalMode): void {
-    if (this.isTrustedFolder() === false && mode !== ApprovalMode.DEFAULT) {
+    if (
+      this.isTrustedFolder() === false &&
+      mode !== ApprovalMode.DEFAULT &&
+      mode !== ApprovalMode.PLAN
+    ) {
       throw new Error(
         'Cannot enable privileged approval modes in an untrusted folder.',
       );
