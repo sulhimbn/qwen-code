@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { EOL } from 'node:os';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import type {
   ToolCallConfirmationDetails,
@@ -70,7 +71,7 @@ describe('ToolConfirmationMessage', () => {
     const confirmationDetails: ToolCallConfirmationDetails = {
       type: 'plan',
       title: 'Would you like to proceed?',
-      plan: '# Implementation Plan\n- Step one\n- Step two',
+      plan: '# Implementation Plan\n- Step one\n- Step two'.replace(/\n/g, EOL),
       onConfirm: vi.fn(),
     };
 
