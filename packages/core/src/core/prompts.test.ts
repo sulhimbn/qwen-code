@@ -557,7 +557,7 @@ describe('getPlanModeSystemReminder', () => {
     
     expect(result).toContain('1. Answer the user\'s query comprehensively');
     expect(result).toContain('2. When you\'re done researching');
-    expect(result).toContain('ExitPlanMode tool');
+    expect(result).toContain('exit_plan_mode tool');
   });
 
   it('should be deterministic', () => {

@@ -675,7 +675,11 @@ export class CoreToolScheduler {
           }
 
           const allowedTools = this.config.getAllowedTools() || [];
-          if (this.config.getApprovalMode() === ApprovalMode.PLAN) {
+          const isPlanMode =
+            this.config.getApprovalMode() === ApprovalMode.PLAN;
+          const isExitPlanModeTool = reqInfo.name === 'exit_plan_mode';
+
+          if (isPlanMode && !isExitPlanModeTool) {
             if (confirmationDetails) {
               this.setStatusInternal(reqInfo.callId, 'error', {
                 callId: reqInfo.callId,
