@@ -49,7 +49,6 @@ class ExitPlanModeToolInvocation extends BaseToolInvocation<
   ExitPlanModeParams,
   ToolResult
 > {
-  private approvalMode: ApprovalMode;
   private wasApproved = false;
 
   constructor(
@@ -57,7 +56,6 @@ class ExitPlanModeToolInvocation extends BaseToolInvocation<
     params: ExitPlanModeParams,
   ) {
     super(params);
-    this.approvalMode = this.config.getApprovalMode();
   }
 
   getDescription(): string {
@@ -100,15 +98,12 @@ class ExitPlanModeToolInvocation extends BaseToolInvocation<
   private setApprovalModeSafely(mode: ApprovalMode): void {
     try {
       this.config.setApprovalMode(mode);
-      this.approvalMode = mode;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       console.error(
         `[ExitPlanModeTool] Failed to set approval mode to "${mode}": ${errorMessage}`,
       );
-      // Ensure we reflect the current approval mode even if update failed.
-      this.approvalMode = this.config.getApprovalMode();
     }
   }
 
