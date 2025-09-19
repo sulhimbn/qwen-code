@@ -1224,10 +1224,7 @@ ${JSON.stringify(
 
       // Assert
       expect(ideContext.getIdeContext).toHaveBeenCalled();
-      expect(mockTurnRunFn).toHaveBeenCalledWith(
-        ['Hi'],
-        expect.any(Object),
-      );
+      expect(mockTurnRunFn).toHaveBeenCalledWith(['Hi'], expect.any(Object));
     });
 
     it('should add context if ideMode is enabled and there is one active file', async () => {

@@ -5,10 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  ExitPlanModeTool,
-  type ExitPlanModeParams,
-} from './exitPlanMode.js';
+import { ExitPlanModeTool, type ExitPlanModeParams } from './exitPlanMode.js';
 import { ApprovalMode, type Config } from '../config/config.js';
 import { ToolConfirmationOutcome } from './tools.js';
 
@@ -46,7 +43,9 @@ describe('ExitPlanModeTool', () => {
     it('should have correct schema', () => {
       expect(tool.schema).toEqual({
         name: 'exit_plan_mode',
-        description: expect.stringContaining('Use this tool when you are in plan mode'),
+        description: expect.stringContaining(
+          'Use this tool when you are in plan mode',
+        ),
         parametersJsonSchema: {
           type: 'object',
           properties: {
@@ -144,7 +143,9 @@ describe('ExitPlanModeTool', () => {
         },
       });
 
-      expect(mockConfig.setApprovalMode).toHaveBeenCalledWith(ApprovalMode.DEFAULT);
+      expect(mockConfig.setApprovalMode).toHaveBeenCalledWith(
+        ApprovalMode.DEFAULT,
+      );
       expect(approvalMode).toBe(ApprovalMode.DEFAULT);
     });
 
@@ -166,7 +167,9 @@ describe('ExitPlanModeTool', () => {
         await confirmation.onConfirm(ToolConfirmationOutcome.ProceedAlways);
       }
 
-      expect(mockConfig.setApprovalMode).toHaveBeenCalledWith(ApprovalMode.AUTO_EDIT);
+      expect(mockConfig.setApprovalMode).toHaveBeenCalledWith(
+        ApprovalMode.AUTO_EDIT,
+      );
       expect(approvalMode).toBe(ApprovalMode.AUTO_EDIT);
     });
 
@@ -191,10 +194,13 @@ describe('ExitPlanModeTool', () => {
           plan: params.plan,
           error: 'Plan execution was not approved. Remaining in plan mode.',
         }),
-        returnDisplay: 'Plan execution was not approved. Remaining in plan mode.',
+        returnDisplay:
+          'Plan execution was not approved. Remaining in plan mode.',
       });
 
-      expect(mockConfig.setApprovalMode).toHaveBeenCalledWith(ApprovalMode.PLAN);
+      expect(mockConfig.setApprovalMode).toHaveBeenCalledWith(
+        ApprovalMode.PLAN,
+      );
       expect(approvalMode).toBe(ApprovalMode.PLAN);
     });
 
@@ -204,7 +210,9 @@ describe('ExitPlanModeTool', () => {
       };
 
       const invocation = tool.build(params);
-      expect(invocation.getDescription()).toBe('Present implementation plan for user approval');
+      expect(invocation.getDescription()).toBe(
+        'Present implementation plan for user approval',
+      );
     });
 
     it('should handle execution errors gracefully', async () => {
@@ -222,8 +230,10 @@ describe('ExitPlanModeTool', () => {
       }
 
       // Create a spy to simulate an error during the execution
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
       // Mock JSON.stringify to throw an error in the rejection path
       const originalStringify = JSON.stringify;
       vi.spyOn(JSON, 'stringify').mockImplementationOnce(() => {
@@ -261,13 +271,21 @@ describe('ExitPlanModeTool', () => {
 
   describe('tool description', () => {
     it('should contain usage guidelines', () => {
-      expect(tool.description).toContain('Only use this tool when the task requires planning');
-      expect(tool.description).toContain('Do not use the exit plan mode tool because you are not planning');
-      expect(tool.description).toContain('Use the exit plan mode tool after you have finished planning');
+      expect(tool.description).toContain(
+        'Only use this tool when the task requires planning',
+      );
+      expect(tool.description).toContain(
+        'Do not use the exit plan mode tool because you are not planning',
+      );
+      expect(tool.description).toContain(
+        'Use the exit plan mode tool after you have finished planning',
+      );
     });
 
     it('should contain examples', () => {
-      expect(tool.description).toContain('Search for and understand the implementation of vim mode');
+      expect(tool.description).toContain(
+        'Search for and understand the implementation of vim mode',
+      );
       expect(tool.description).toContain('Help me implement yank mode for vim');
     });
   });

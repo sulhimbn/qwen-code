@@ -5,9 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  isShellCommandReadOnly,
-} from './shellReadOnlyChecker.js';
+import { isShellCommandReadOnly } from './shellReadOnlyChecker.js';
 
 describe('evaluateShellCommandReadOnly', () => {
   it('allows simple read-only command', () => {

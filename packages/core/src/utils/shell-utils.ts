@@ -9,9 +9,7 @@ import type { Config } from '../config/config.js';
 import os from 'node:os';
 import { quote } from 'shell-quote';
 import { doesToolInvocationMatch } from './tool-utils.js';
-import {
-  isShellCommandReadOnly,
-} from './shellReadOnlyChecker.js';
+import { isShellCommandReadOnly } from './shellReadOnlyChecker.js';
 
 const SHELL_TOOL_NAMES = ['run_shell_command', 'ShellTool'];
 

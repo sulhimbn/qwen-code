@@ -11,7 +11,6 @@ import {
   stripShellWrapper,
 } from './shell-utils.js';
 
-
 const READ_ONLY_ROOT_COMMANDS = new Set([
   'awk',
   'basename',
@@ -284,9 +283,7 @@ function evaluateShellSegment(segment: string): boolean {
   return true;
 }
 
-export function isShellCommandReadOnly(
-  command: string,
-): boolean {
+export function isShellCommandReadOnly(command: string): boolean {
   if (typeof command !== 'string' || !command.trim()) {
     return false;
   }
