@@ -13,7 +13,7 @@ This document lists the available keyboard shortcuts in Qwen Code.
 | `Ctrl+O`    | Toggle the display of the debug console.                                                                              |
 | `Ctrl+S`    | Allows long responses to print fully, disabling truncation. Use your terminal's scrollback to view the entire output. |
 | `Ctrl+T`    | Toggle the display of tool descriptions.                                                                              |
-| `Shift+Tab` | Cycle approval modes (`plan` → `default` → `auto_edit` → `yolo`).                                                     |
+| `Shift+Tab` | Cycle approval modes (`plan` → `default` → `auto-edit` → `yolo`).                                                     |
 
 ## Input Prompt
 

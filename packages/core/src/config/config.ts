@@ -64,9 +64,11 @@ export type { AnyToolInvocation, MCPOAuthConfig };
 export enum ApprovalMode {
   PLAN = 'plan',
   DEFAULT = 'default',
-  AUTO_EDIT = 'autoEdit',
+  AUTO_EDIT = 'auto-edit',
   YOLO = 'yolo',
 }
+
+export const APPROVAL_MODES = Object.values(ApprovalMode);
 
 export interface AccessibilitySettings {
   disableLoadingPhrases?: boolean;

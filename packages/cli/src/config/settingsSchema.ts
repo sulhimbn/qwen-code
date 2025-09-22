@@ -889,7 +889,7 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: false,
     default: 'default',
     description:
-      'Default approval mode for tool usage. Valid values: plan, default, auto_edit, yolo.',
+      'Default approval mode for tool usage. Valid values: plan, default, auto-edit, yolo.',
     showInDialog: true,
   },
   enableWelcomeBack: {

@@ -55,7 +55,7 @@ const logger = {
 const VALID_APPROVAL_MODE_VALUES = [
   'plan',
   'default',
-  'auto_edit',
+  'auto-edit',
   'yolo',
 ] as const;
 
@@ -179,9 +179,9 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
         })
         .option('approval-mode', {
           type: 'string',
-          choices: ['plan', 'default', 'auto_edit', 'yolo'],
+          choices: ['plan', 'default', 'auto-edit', 'yolo'],
           description:
-            'Set the approval mode: plan (investigate only), default (prompt for approval), auto_edit (auto-approve edit tools), yolo (auto-approve all tools)',
+            'Set the approval mode: plan (plan only), default (prompt for approval), auto-edit (auto-approve edit tools), yolo (auto-approve all tools)',
         })
         .option('telemetry', {
           type: 'boolean',

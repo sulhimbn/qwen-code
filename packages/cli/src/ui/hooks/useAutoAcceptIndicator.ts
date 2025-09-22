@@ -4,18 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ApprovalMode, type Config } from '@qwen-code/qwen-code-core';
+import {
+  type ApprovalMode,
+  APPROVAL_MODES,
+  type Config,
+} from '@qwen-code/qwen-code-core';
 import { useEffect, useState } from 'react';
 import { useKeypress } from './useKeypress.js';
 import type { HistoryItemWithoutId } from '../types.js';
 import { MessageType } from '../types.js';
-
-const APPROVAL_MODE_SEQUENCE: ApprovalMode[] = [
-  ApprovalMode.PLAN,
-  ApprovalMode.DEFAULT,
-  ApprovalMode.AUTO_EDIT,
-  ApprovalMode.YOLO,
-];
 
 export interface UseAutoAcceptIndicatorArgs {
   config: Config;
@@ -41,12 +38,10 @@ export function useAutoAcceptIndicator({
       }
 
       const currentMode = config.getApprovalMode();
-      const currentIndex = APPROVAL_MODE_SEQUENCE.indexOf(currentMode);
+      const currentIndex = APPROVAL_MODES.indexOf(currentMode);
       const nextIndex =
-        currentIndex === -1
-          ? 0
-          : (currentIndex + 1) % APPROVAL_MODE_SEQUENCE.length;
-      const nextApprovalMode = APPROVAL_MODE_SEQUENCE[nextIndex];
+        currentIndex === -1 ? 0 : (currentIndex + 1) % APPROVAL_MODES.length;
+      const nextApprovalMode = APPROVAL_MODES[nextIndex];
 
       try {
         config.setApprovalMode(nextApprovalMode);
