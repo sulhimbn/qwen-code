@@ -670,7 +670,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (!contentGeneratorConfig) return [];
 
     const visionModelPreviewEnabled =
-      settings.merged.experimental?.visionModelPreview ?? false;
+      settings.merged.experimental?.visionModelPreview ?? true;
 
     switch (contentGeneratorConfig.authType) {
       case AuthType.QWEN_OAUTH:
@@ -759,7 +759,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     setModelSwitchedFromQuotaError,
     refreshStatic,
     () => cancelHandlerRef.current(),
-    settings.merged.experimental?.visionModelPreview ?? false,
+    settings.merged.experimental?.visionModelPreview ?? true,
     handleVisionSwitchRequired,
   );
 

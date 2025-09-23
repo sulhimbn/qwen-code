@@ -41,7 +41,7 @@ describe('useVisionAutoSwitch helpers', () => {
       const result = shouldOfferVisionSwitch(
         parts,
         AuthType.QWEN_OAUTH,
-        'qwen-vl-max-latest',
+        'vision-model',
         true,
       );
       expect(result).toBe(false);
@@ -140,7 +140,7 @@ describe('useVisionAutoSwitch helpers', () => {
       const result = shouldOfferVisionSwitch(
         parts,
         AuthType.QWEN_OAUTH,
-        'qwen-vl-max-latest',
+        'vision-model',
         true,
       );
       expect(result).toBe(false);
@@ -314,7 +314,7 @@ describe('useVisionAutoSwitch hook', () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, initialModel);
     const onVisionSwitchRequired = vi
       .fn()
-      .mockResolvedValue({ modelOverride: 'qwen-vl-max-latest' });
+      .mockResolvedValue({ modelOverride: 'coder-model' });
     const { result } = renderHook(() =>
       useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
@@ -329,7 +329,7 @@ describe('useVisionAutoSwitch hook', () => {
     });
 
     expect(res).toEqual({ shouldProceed: true, originalModel: initialModel });
-    expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+    expect(config.setModel).toHaveBeenCalledWith('coder-model', {
       reason: 'vision_auto_switch',
       context: 'User-prompted vision switch (one-time override)',
     });
@@ -348,7 +348,7 @@ describe('useVisionAutoSwitch hook', () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
     const onVisionSwitchRequired = vi
       .fn()
-      .mockResolvedValue({ persistSessionModel: 'qwen-vl-max-latest' });
+      .mockResolvedValue({ persistSessionModel: 'coder-model' });
     const { result } = renderHook(() =>
       useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
@@ -363,7 +363,7 @@ describe('useVisionAutoSwitch hook', () => {
     });
 
     expect(res).toEqual({ shouldProceed: true });
-    expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+    expect(config.setModel).toHaveBeenCalledWith('coder-model', {
       reason: 'vision_auto_switch',
       context: 'User-prompted vision switch (session persistent)',
     });
@@ -373,9 +373,7 @@ describe('useVisionAutoSwitch hook', () => {
       result.current.restoreOriginalModel();
     });
     // Last call should still be the persisted model set
-    expect((config.setModel as any).mock.calls.pop()?.[0]).toBe(
-      'qwen-vl-max-latest',
-    );
+    expect((config.setModel as any).mock.calls.pop()?.[0]).toBe('coder-model');
   });
 
   it('returns shouldProceed=true when dialog returns no special flags', async () => {
@@ -507,7 +505,7 @@ describe('useVisionAutoSwitch hook', () => {
     it('does not switch in YOLO mode when already using vision model', async () => {
       const config = createMockConfig(
         AuthType.QWEN_OAUTH,
-        'qwen-vl-max-latest',
+        'vision-model',
         ApprovalMode.YOLO,
       );
       const onVisionSwitchRequired = vi.fn();
@@ -709,7 +707,7 @@ describe('useVisionAutoSwitch hook', () => {
 
       expect(switchResult.shouldProceed).toBe(true);
       expect(switchResult.originalModel).toBe('qwen3-coder-plus');
-      expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+      expect(config.setModel).toHaveBeenCalledWith('vision-model', {
         reason: 'vision_auto_switch',
         context: 'Default VLM switch mode: once (one-time override)',
       });
@@ -745,7 +743,7 @@ describe('useVisionAutoSwitch hook', () => {
 
       expect(switchResult.shouldProceed).toBe(true);
       expect(switchResult.originalModel).toBeUndefined(); // No original model for session switch
-      expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+      expect(config.setModel).toHaveBeenCalledWith('vision-model', {
         reason: 'vision_auto_switch',
         context: 'Default VLM switch mode: session (session persistent)',
       });
@@ -794,7 +792,7 @@ describe('useVisionAutoSwitch hook', () => {
       );
       const onVisionSwitchRequired = vi
         .fn()
-        .mockResolvedValue({ modelOverride: 'qwen-vl-max-latest' });
+        .mockResolvedValue({ modelOverride: 'vision-model' });
       const { result } = renderHook(() =>
         useVisionAutoSwitch(
           config,

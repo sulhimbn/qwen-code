@@ -10,8 +10,8 @@ export type AvailableModel = {
   isVision?: boolean;
 };
 
-export const MAINLINE_VLM = 'qwen-vl-max-latest';
-export const MAINLINE_CODER = 'qwen3-coder-plus';
+export const MAINLINE_VLM = 'vision-model';
+export const MAINLINE_CODER = 'coder-model';
 
 export const AVAILABLE_MODELS_QWEN: AvailableModel[] = [
   { id: MAINLINE_CODER, label: MAINLINE_CODER },

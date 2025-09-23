@@ -121,7 +121,7 @@ export function shouldOfferVisionSwitch(
   parts: PartListUnion,
   authType: AuthType,
   currentModel: string,
-  visionModelPreviewEnabled: boolean = false,
+  visionModelPreviewEnabled: boolean = true,
 ): boolean {
   // Only trigger for qwen-oauth
   if (authType !== AuthType.QWEN_OAUTH) {
@@ -198,7 +198,7 @@ export interface VisionSwitchHandlingResult {
 export function useVisionAutoSwitch(
   config: Config,
   addItem: UseHistoryManagerReturn['addItem'],
-  visionModelPreviewEnabled: boolean = false,
+  visionModelPreviewEnabled: boolean = true,
   onVisionSwitchRequired?: (query: PartListUnion) => Promise<{
     modelOverride?: string;
     persistSessionModel?: string;

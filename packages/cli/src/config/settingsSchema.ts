@@ -746,7 +746,7 @@ export const SETTINGS_SCHEMA = {
         label: 'Vision Model Preview',
         category: 'Experimental',
         requiresRestart: false,
-        default: false,
+        default: true,
         description:
           'Enable vision model support and auto-switching functionality. When disabled, vision models like qwen-vl-max-latest will be hidden and auto-switching will not occur.',
         showInDialog: true,

@@ -89,7 +89,7 @@ export const useGeminiStream = (
   setModelSwitchedFromQuotaError: React.Dispatch<React.SetStateAction<boolean>>,
   onEditorClose: () => void,
   onCancelSubmit: () => void,
-  visionModelPreviewEnabled: boolean = false,
+  visionModelPreviewEnabled: boolean,
   onVisionSwitchRequired?: (query: PartListUnion) => Promise<{
     modelOverride?: string;
     persistSessionModel?: string;
