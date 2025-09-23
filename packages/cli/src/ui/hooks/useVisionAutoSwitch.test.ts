@@ -175,11 +175,11 @@ describe('useVisionAutoSwitch helpers', () => {
       expect(result).toEqual({ persistSessionModel: vl });
     });
 
-    it('maps DisallowWithGuidance to showGuidance', () => {
+    it('maps ContinueWithCurrentModel to empty result', () => {
       const result = processVisionSwitchOutcome(
-        VisionSwitchOutcome.DisallowWithGuidance,
+        VisionSwitchOutcome.ContinueWithCurrentModel,
       );
-      expect(result).toEqual({ showGuidance: true });
+      expect(result).toEqual({});
     });
   });
 
@@ -205,6 +205,7 @@ describe('useVisionAutoSwitch hook', () => {
     authType: AuthType,
     initialModel: string,
     approvalMode: ApprovalMode = ApprovalMode.DEFAULT,
+    vlmSwitchMode?: string,
   ) => {
     let currentModel = initialModel;
     const mockConfig: Partial<Config> = {
@@ -213,6 +214,7 @@ describe('useVisionAutoSwitch hook', () => {
         currentModel = m;
       }),
       getApprovalMode: vi.fn(() => approvalMode),
+      getVlmSwitchMode: vi.fn(() => vlmSwitchMode),
       getContentGeneratorConfig: vi.fn(() => ({
         authType,
         model: currentModel,
@@ -281,11 +283,9 @@ describe('useVisionAutoSwitch hook', () => {
     expect(onVisionSwitchRequired).not.toHaveBeenCalled();
   });
 
-  it('shows guidance and blocks when dialog returns showGuidance', async () => {
+  it('continues with current model when dialog returns empty result', async () => {
     const config = createMockConfig(AuthType.QWEN_OAUTH, 'qwen3-coder-plus');
-    const onVisionSwitchRequired = vi
-      .fn()
-      .mockResolvedValue({ showGuidance: true });
+    const onVisionSwitchRequired = vi.fn().mockResolvedValue({}); // Empty result for ContinueWithCurrentModel
     const { result } = renderHook(() =>
       useVisionAutoSwitch(config, addItem as any, true, onVisionSwitchRequired),
     );
@@ -300,11 +300,12 @@ describe('useVisionAutoSwitch hook', () => {
       res = await result.current.handleVisionSwitch(parts, userTs, false);
     });
 
-    expect(addItem).toHaveBeenCalledWith(
+    // Should not add any guidance message
+    expect(addItem).not.toHaveBeenCalledWith(
       { type: MessageType.INFO, text: getVisionSwitchGuidanceMessage() },
       userTs,
     );
-    expect(res).toEqual({ shouldProceed: false });
+    expect(res).toEqual({ shouldProceed: true });
     expect(config.setModel).not.toHaveBeenCalled();
   });
 
@@ -328,13 +329,19 @@ describe('useVisionAutoSwitch hook', () => {
     });
 
     expect(res).toEqual({ shouldProceed: true, originalModel: initialModel });
-    expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest');
+    expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+      reason: 'vision_auto_switch',
+      context: 'User-prompted vision switch (one-time override)',
+    });
 
     // Now restore
     act(() => {
       result.current.restoreOriginalModel();
     });
-    expect(config.setModel).toHaveBeenLastCalledWith(initialModel);
+    expect(config.setModel).toHaveBeenLastCalledWith(initialModel, {
+      reason: 'vision_auto_switch',
+      context: 'Restoring original model after vision switch',
+    });
   });
 
   it('persists session model when dialog requests persistence', async () => {
@@ -356,7 +363,10 @@ describe('useVisionAutoSwitch hook', () => {
     });
 
     expect(res).toEqual({ shouldProceed: true });
-    expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest');
+    expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+      reason: 'vision_auto_switch',
+      context: 'User-prompted vision switch (session persistent)',
+    });
 
     // Restore should be a no-op since no one-time override was used
     act(() => {
@@ -460,7 +470,10 @@ describe('useVisionAutoSwitch hook', () => {
         shouldProceed: true,
         originalModel: initialModel,
       });
-      expect(config.setModel).toHaveBeenCalledWith(getDefaultVisionModel());
+      expect(config.setModel).toHaveBeenCalledWith(getDefaultVisionModel(), {
+        reason: 'vision_auto_switch',
+        context: 'YOLO mode auto-switch for image content',
+      });
     });
 
     it('does not switch in YOLO mode when no images are present', async () => {
@@ -548,7 +561,10 @@ describe('useVisionAutoSwitch hook', () => {
       });
 
       // Verify model was switched
-      expect(config.setModel).toHaveBeenCalledWith(getDefaultVisionModel());
+      expect(config.setModel).toHaveBeenCalledWith(getDefaultVisionModel(), {
+        reason: 'vision_auto_switch',
+        context: 'YOLO mode auto-switch for image content',
+      });
 
       // Now restore the original model
       act(() => {
@@ -556,7 +572,10 @@ describe('useVisionAutoSwitch hook', () => {
       });
 
       // Verify model was restored
-      expect(config.setModel).toHaveBeenLastCalledWith(initialModel);
+      expect(config.setModel).toHaveBeenLastCalledWith(initialModel, {
+        reason: 'vision_auto_switch',
+        context: 'Restoring original model after vision switch',
+      });
     });
 
     it('does not switch in YOLO mode when authType is not QWEN_OAUTH', async () => {
@@ -652,7 +671,184 @@ describe('useVisionAutoSwitch hook', () => {
         shouldProceed: true,
         originalModel: initialModel,
       });
-      expect(config.setModel).toHaveBeenCalledWith(getDefaultVisionModel());
+      expect(config.setModel).toHaveBeenCalledWith(getDefaultVisionModel(), {
+        reason: 'vision_auto_switch',
+        context: 'YOLO mode auto-switch for image content',
+      });
+      expect(onVisionSwitchRequired).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('VLM switch mode default behavior', () => {
+    it('should automatically switch once when vlmSwitchMode is "once"', async () => {
+      const config = createMockConfig(
+        AuthType.QWEN_OAUTH,
+        'qwen3-coder-plus',
+        ApprovalMode.DEFAULT,
+        'once',
+      );
+      const onVisionSwitchRequired = vi.fn(); // Should not be called
+      const { result } = renderHook(() =>
+        useVisionAutoSwitch(
+          config,
+          addItem as any,
+          true,
+          onVisionSwitchRequired,
+        ),
+      );
+
+      const parts: PartListUnion = [
+        { inlineData: { mimeType: 'image/jpeg', data: 'base64data' } },
+      ];
+
+      const switchResult = await result.current.handleVisionSwitch(
+        parts,
+        Date.now(),
+        false,
+      );
+
+      expect(switchResult.shouldProceed).toBe(true);
+      expect(switchResult.originalModel).toBe('qwen3-coder-plus');
+      expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+        reason: 'vision_auto_switch',
+        context: 'Default VLM switch mode: once (one-time override)',
+      });
+      expect(onVisionSwitchRequired).not.toHaveBeenCalled();
+    });
+
+    it('should switch session when vlmSwitchMode is "session"', async () => {
+      const config = createMockConfig(
+        AuthType.QWEN_OAUTH,
+        'qwen3-coder-plus',
+        ApprovalMode.DEFAULT,
+        'session',
+      );
+      const onVisionSwitchRequired = vi.fn(); // Should not be called
+      const { result } = renderHook(() =>
+        useVisionAutoSwitch(
+          config,
+          addItem as any,
+          true,
+          onVisionSwitchRequired,
+        ),
+      );
+
+      const parts: PartListUnion = [
+        { inlineData: { mimeType: 'image/jpeg', data: 'base64data' } },
+      ];
+
+      const switchResult = await result.current.handleVisionSwitch(
+        parts,
+        Date.now(),
+        false,
+      );
+
+      expect(switchResult.shouldProceed).toBe(true);
+      expect(switchResult.originalModel).toBeUndefined(); // No original model for session switch
+      expect(config.setModel).toHaveBeenCalledWith('qwen-vl-max-latest', {
+        reason: 'vision_auto_switch',
+        context: 'Default VLM switch mode: session (session persistent)',
+      });
+      expect(onVisionSwitchRequired).not.toHaveBeenCalled();
+    });
+
+    it('should continue with current model when vlmSwitchMode is "persist"', async () => {
+      const config = createMockConfig(
+        AuthType.QWEN_OAUTH,
+        'qwen3-coder-plus',
+        ApprovalMode.DEFAULT,
+        'persist',
+      );
+      const onVisionSwitchRequired = vi.fn(); // Should not be called
+      const { result } = renderHook(() =>
+        useVisionAutoSwitch(
+          config,
+          addItem as any,
+          true,
+          onVisionSwitchRequired,
+        ),
+      );
+
+      const parts: PartListUnion = [
+        { inlineData: { mimeType: 'image/jpeg', data: 'base64data' } },
+      ];
+
+      const switchResult = await result.current.handleVisionSwitch(
+        parts,
+        Date.now(),
+        false,
+      );
+
+      expect(switchResult.shouldProceed).toBe(true);
+      expect(switchResult.originalModel).toBeUndefined();
+      expect(config.setModel).not.toHaveBeenCalled();
+      expect(onVisionSwitchRequired).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to user prompt when vlmSwitchMode is not set', async () => {
+      const config = createMockConfig(
+        AuthType.QWEN_OAUTH,
+        'qwen3-coder-plus',
+        ApprovalMode.DEFAULT,
+        undefined, // No default mode
+      );
+      const onVisionSwitchRequired = vi
+        .fn()
+        .mockResolvedValue({ modelOverride: 'qwen-vl-max-latest' });
+      const { result } = renderHook(() =>
+        useVisionAutoSwitch(
+          config,
+          addItem as any,
+          true,
+          onVisionSwitchRequired,
+        ),
+      );
+
+      const parts: PartListUnion = [
+        { inlineData: { mimeType: 'image/jpeg', data: 'base64data' } },
+      ];
+
+      const switchResult = await result.current.handleVisionSwitch(
+        parts,
+        Date.now(),
+        false,
+      );
+
+      expect(switchResult.shouldProceed).toBe(true);
+      expect(onVisionSwitchRequired).toHaveBeenCalledWith(parts);
+    });
+
+    it('should fall back to persist behavior when vlmSwitchMode has invalid value', async () => {
+      const config = createMockConfig(
+        AuthType.QWEN_OAUTH,
+        'qwen3-coder-plus',
+        ApprovalMode.DEFAULT,
+        'invalid-value',
+      );
+      const onVisionSwitchRequired = vi.fn(); // Should not be called
+      const { result } = renderHook(() =>
+        useVisionAutoSwitch(
+          config,
+          addItem as any,
+          true,
+          onVisionSwitchRequired,
+        ),
+      );
+
+      const parts: PartListUnion = [
+        { inlineData: { mimeType: 'image/jpeg', data: 'base64data' } },
+      ];
+
+      const switchResult = await result.current.handleVisionSwitch(
+        parts,
+        Date.now(),
+        false,
+      );
+
+      expect(switchResult.shouldProceed).toBe(true);
+      expect(switchResult.originalModel).toBeUndefined();
+      // For invalid values, it should continue with current model (persist behavior)
+      expect(config.setModel).not.toHaveBeenCalled();
       expect(onVisionSwitchRequired).not.toHaveBeenCalled();
     });
   });

@@ -111,6 +111,9 @@ const PATTERNS: Array<[RegExp, TokenCount]> = [
   // Commercial Qwen3-Coder-Flash: 1M token context
   [/^qwen3-coder-flash(-.*)?$/, LIMITS['1m']], // catches "qwen3-coder-flash" and date variants
 
+  // Commercial Qwen3-Max-Preview: 256K token context
+  [/^qwen3-max-preview(-.*)?$/, LIMITS['256k']], // catches "qwen3-max-preview" and date variants
+
   // Open-source Qwen3-Coder variants: 256K native
   [/^qwen3-coder-.*$/, LIMITS['256k']],
   // Open-source Qwen3 2507 variants: 256K native
@@ -166,8 +169,14 @@ const OUTPUT_PATTERNS: Array<[RegExp, TokenCount]> = [
   // Qwen3-Coder-Plus: 65,536 max output tokens
   [/^qwen3-coder-plus(-.*)?$/, LIMITS['64k']],
 
+  // Qwen3-Max-Preview: 65,536 max output tokens
+  [/^qwen3-max-preview(-.*)?$/, LIMITS['64k']],
+
   // Qwen-VL-Max-Latest: 8,192 max output tokens
   [/^qwen-vl-max-latest$/, LIMITS['8k']],
+
+  // Qwen3-VL-Plus: 8,192 max output tokens
+  [/^qwen3-vl-plus$/, LIMITS['8k']],
 ];
 
 /**

@@ -166,11 +166,11 @@ export function processVisionSwitchOutcome(
     case VisionSwitchOutcome.SwitchSessionToVL:
       return { persistSessionModel: vlModelId };
 
-    case VisionSwitchOutcome.DisallowWithGuidance:
-      return { showGuidance: true };
+    case VisionSwitchOutcome.ContinueWithCurrentModel:
+      return {}; // Continue with current model, no changes needed
 
     default:
-      return { showGuidance: true };
+      return {}; // Default to continuing with current model
   }
 }
 
@@ -256,42 +256,87 @@ export function useVisionAutoSwitch(
       if (config.getApprovalMode() === ApprovalMode.YOLO) {
         const vlModelId = getDefaultVisionModel();
         originalModelRef.current = config.getModel();
-        config.setModel(vlModelId);
+        config.setModel(vlModelId, {
+          reason: 'vision_auto_switch',
+          context: 'YOLO mode auto-switch for image content',
+        });
         return {
           shouldProceed: true,
           originalModel: originalModelRef.current,
         };
       }
 
-      try {
-        const visionSwitchResult = await onVisionSwitchRequired(query);
-
-        if (visionSwitchResult.showGuidance) {
-          // Show guidance and don't proceed with the request
-          addItem(
-            {
-              type: MessageType.INFO,
-              text: getVisionSwitchGuidanceMessage(),
-            },
-            userMessageTimestamp,
-          );
-          return { shouldProceed: false };
+      // Check if there's a default VLM switch mode configured
+      const defaultVlmSwitchMode = config.getVlmSwitchMode();
+      if (defaultVlmSwitchMode) {
+        // Convert string value to VisionSwitchOutcome enum
+        let outcome: VisionSwitchOutcome;
+        switch (defaultVlmSwitchMode) {
+          case 'once':
+            outcome = VisionSwitchOutcome.SwitchOnce;
+            break;
+          case 'session':
+            outcome = VisionSwitchOutcome.SwitchSessionToVL;
+            break;
+          case 'persist':
+            outcome = VisionSwitchOutcome.ContinueWithCurrentModel;
+            break;
+          default:
+            // Invalid value, fall back to prompting user
+            outcome = VisionSwitchOutcome.ContinueWithCurrentModel;
         }
+
+        // Process the default outcome
+        const visionSwitchResult = processVisionSwitchOutcome(outcome);
 
         if (visionSwitchResult.modelOverride) {
           // One-time model override
           originalModelRef.current = config.getModel();
-          config.setModel(visionSwitchResult.modelOverride);
+          config.setModel(visionSwitchResult.modelOverride, {
+            reason: 'vision_auto_switch',
+            context: `Default VLM switch mode: ${defaultVlmSwitchMode} (one-time override)`,
+          });
           return {
             shouldProceed: true,
             originalModel: originalModelRef.current,
           };
         } else if (visionSwitchResult.persistSessionModel) {
           // Persistent session model change
-          config.setModel(visionSwitchResult.persistSessionModel);
+          config.setModel(visionSwitchResult.persistSessionModel, {
+            reason: 'vision_auto_switch',
+            context: `Default VLM switch mode: ${defaultVlmSwitchMode} (session persistent)`,
+          });
           return { shouldProceed: true };
         }
 
+        // For ContinueWithCurrentModel or any other case, proceed with current model
+        return { shouldProceed: true };
+      }
+
+      try {
+        const visionSwitchResult = await onVisionSwitchRequired(query);
+
+        if (visionSwitchResult.modelOverride) {
+          // One-time model override
+          originalModelRef.current = config.getModel();
+          config.setModel(visionSwitchResult.modelOverride, {
+            reason: 'vision_auto_switch',
+            context: 'User-prompted vision switch (one-time override)',
+          });
+          return {
+            shouldProceed: true,
+            originalModel: originalModelRef.current,
+          };
+        } else if (visionSwitchResult.persistSessionModel) {
+          // Persistent session model change
+          config.setModel(visionSwitchResult.persistSessionModel, {
+            reason: 'vision_auto_switch',
+            context: 'User-prompted vision switch (session persistent)',
+          });
+          return { shouldProceed: true };
+        }
+
+        // For ContinueWithCurrentModel or any other case, proceed with current model
         return { shouldProceed: true };
       } catch (_error) {
         // If vision switch dialog was cancelled or errored, don't proceed
@@ -303,7 +348,10 @@ export function useVisionAutoSwitch(
 
   const restoreOriginalModel = useCallback(() => {
     if (originalModelRef.current) {
-      config.setModel(originalModelRef.current);
+      config.setModel(originalModelRef.current, {
+        reason: 'vision_auto_switch',
+        context: 'Restoring original model after vision switch',
+      });
       originalModelRef.current = null;
     }
   }, [config]);
