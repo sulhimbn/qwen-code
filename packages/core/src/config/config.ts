@@ -528,13 +528,13 @@ export class Config {
     return this.contentGeneratorConfig?.model || this.model;
   }
 
-  setModel(
+  async setModel(
     newModel: string,
     options?: {
       reason?: ModelSwitchEvent['reason'];
       context?: string;
     },
-  ): void {
+  ): Promise<void> {
     const oldModel = this.getModel();
 
     if (this.contentGeneratorConfig) {
@@ -559,13 +559,16 @@ export class Config {
     // Reinitialize chat with updated configuration while preserving history
     const geminiClient = this.getGeminiClient();
     if (geminiClient && geminiClient.isInitialized()) {
-      // Use async operation but don't await to avoid blocking
-      geminiClient.reinitialize().catch((error) => {
+      // Now await the reinitialize operation to ensure completion
+      try {
+        await geminiClient.reinitialize();
+      } catch (error) {
         console.error(
           'Failed to reinitialize chat with updated config:',
           error,
         );
-      });
+        throw error; // Re-throw to let callers handle the error
+      }
     }
   }
 

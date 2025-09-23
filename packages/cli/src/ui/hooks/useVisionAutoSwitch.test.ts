@@ -210,7 +210,7 @@ describe('useVisionAutoSwitch hook', () => {
     let currentModel = initialModel;
     const mockConfig: Partial<Config> = {
       getModel: vi.fn(() => currentModel),
-      setModel: vi.fn((m: string) => {
+      setModel: vi.fn(async (m: string) => {
         currentModel = m;
       }),
       getApprovalMode: vi.fn(() => approvalMode),
@@ -335,8 +335,8 @@ describe('useVisionAutoSwitch hook', () => {
     });
 
     // Now restore
-    act(() => {
-      result.current.restoreOriginalModel();
+    await act(async () => {
+      await result.current.restoreOriginalModel();
     });
     expect(config.setModel).toHaveBeenLastCalledWith(initialModel, {
       reason: 'vision_auto_switch',
@@ -369,8 +369,8 @@ describe('useVisionAutoSwitch hook', () => {
     });
 
     // Restore should be a no-op since no one-time override was used
-    act(() => {
-      result.current.restoreOriginalModel();
+    await act(async () => {
+      await result.current.restoreOriginalModel();
     });
     // Last call should still be the persisted model set
     expect((config.setModel as any).mock.calls.pop()?.[0]).toBe('coder-model');
@@ -565,8 +565,8 @@ describe('useVisionAutoSwitch hook', () => {
       });
 
       // Now restore the original model
-      act(() => {
-        result.current.restoreOriginalModel();
+      await act(async () => {
+        await result.current.restoreOriginalModel();
       });
 
       // Verify model was restored

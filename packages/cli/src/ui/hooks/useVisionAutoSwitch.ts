@@ -256,7 +256,7 @@ export function useVisionAutoSwitch(
       if (config.getApprovalMode() === ApprovalMode.YOLO) {
         const vlModelId = getDefaultVisionModel();
         originalModelRef.current = config.getModel();
-        config.setModel(vlModelId, {
+        await config.setModel(vlModelId, {
           reason: 'vision_auto_switch',
           context: 'YOLO mode auto-switch for image content',
         });
@@ -292,7 +292,7 @@ export function useVisionAutoSwitch(
         if (visionSwitchResult.modelOverride) {
           // One-time model override
           originalModelRef.current = config.getModel();
-          config.setModel(visionSwitchResult.modelOverride, {
+          await config.setModel(visionSwitchResult.modelOverride, {
             reason: 'vision_auto_switch',
             context: `Default VLM switch mode: ${defaultVlmSwitchMode} (one-time override)`,
           });
@@ -302,7 +302,7 @@ export function useVisionAutoSwitch(
           };
         } else if (visionSwitchResult.persistSessionModel) {
           // Persistent session model change
-          config.setModel(visionSwitchResult.persistSessionModel, {
+          await config.setModel(visionSwitchResult.persistSessionModel, {
             reason: 'vision_auto_switch',
             context: `Default VLM switch mode: ${defaultVlmSwitchMode} (session persistent)`,
           });
@@ -319,7 +319,7 @@ export function useVisionAutoSwitch(
         if (visionSwitchResult.modelOverride) {
           // One-time model override
           originalModelRef.current = config.getModel();
-          config.setModel(visionSwitchResult.modelOverride, {
+          await config.setModel(visionSwitchResult.modelOverride, {
             reason: 'vision_auto_switch',
             context: 'User-prompted vision switch (one-time override)',
           });
@@ -329,7 +329,7 @@ export function useVisionAutoSwitch(
           };
         } else if (visionSwitchResult.persistSessionModel) {
           // Persistent session model change
-          config.setModel(visionSwitchResult.persistSessionModel, {
+          await config.setModel(visionSwitchResult.persistSessionModel, {
             reason: 'vision_auto_switch',
             context: 'User-prompted vision switch (session persistent)',
           });
@@ -346,9 +346,9 @@ export function useVisionAutoSwitch(
     [config, addItem, visionModelPreviewEnabled, onVisionSwitchRequired],
   );
 
-  const restoreOriginalModel = useCallback(() => {
+  const restoreOriginalModel = useCallback(async () => {
     if (originalModelRef.current) {
-      config.setModel(originalModelRef.current, {
+      await config.setModel(originalModelRef.current, {
         reason: 'vision_auto_switch',
         context: 'Restoring original model after vision switch',
       });

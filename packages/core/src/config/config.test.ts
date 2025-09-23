@@ -755,7 +755,7 @@ describe('setApprovalMode with folder trust', () => {
       const logModelSwitchSpy = vi.spyOn(config['logger']!, 'logModelSwitch');
 
       // Change the model
-      config.setModel('qwen-vl-max-latest', {
+      await config.setModel('qwen-vl-max-latest', {
         reason: 'vision_auto_switch',
         context: 'Test model switch',
       });
@@ -785,7 +785,7 @@ describe('setApprovalMode with folder trust', () => {
       const logModelSwitchSpy = vi.spyOn(config['logger']!, 'logModelSwitch');
 
       // Set the same model
-      config.setModel('qwen3-coder-plus');
+      await config.setModel('qwen3-coder-plus');
 
       // Verify that logModelSwitch was not called
       expect(logModelSwitchSpy).not.toHaveBeenCalled();
@@ -807,7 +807,7 @@ describe('setApprovalMode with folder trust', () => {
       const logModelSwitchSpy = vi.spyOn(config['logger']!, 'logModelSwitch');
 
       // Change the model without options
-      config.setModel('qwen-vl-max-latest');
+      await config.setModel('qwen-vl-max-latest');
 
       // Verify that logModelSwitch was called with default reason
       expect(logModelSwitchSpy).toHaveBeenCalledWith({
