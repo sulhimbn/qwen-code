@@ -1062,7 +1062,7 @@ export class GeminiClient {
           error,
         );
         if (accepted !== false && accepted !== null) {
-          this.config.setModel(fallbackModel);
+          await this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true);
           return fallbackModel;
         }

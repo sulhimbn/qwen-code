@@ -1541,7 +1541,7 @@ describe('loadCliConfig model selection', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('qwen3-coder-plus');
+    expect(config.getModel()).toBe('coder-model');
   });
 
   it('always prefers model from argvs', async () => {
