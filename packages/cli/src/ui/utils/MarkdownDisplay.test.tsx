@@ -251,4 +251,21 @@ Another paragraph.
     expect(lastFrame()).toMatchSnapshot();
     expect(lastFrame()).toContain(' 1 ');
   });
+
+  it('correctly splits lines using \\n regardless of platform EOL', () => {
+    // Test that the component uses \n for splitting, not EOL
+    const textWithUnixLineEndings = 'Line 1\nLine 2\nLine 3';
+
+    const { lastFrame } = render(
+      <SettingsContext.Provider value={mockSettings}>
+        <MarkdownDisplay {...baseProps} text={textWithUnixLineEndings} />
+      </SettingsContext.Provider>,
+    );
+
+    const output = lastFrame();
+    expect(output).toContain('Line 1');
+    expect(output).toContain('Line 2');
+    expect(output).toContain('Line 3');
+    expect(output).toMatchSnapshot();
+  });
 });
