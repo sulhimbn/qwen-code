@@ -687,6 +687,25 @@ export class QwenLogger {
     this.flushIfNeeded();
   }
 
+  logUserCancellationEvent(
+    event: import('../types.js').UserCancellationEvent,
+  ): void {
+    const rumEvent = this.createActionEvent(
+      'cancellation',
+      'user_cancellation',
+      {
+        properties: {
+          cancellation_type: event.cancellation_type,
+          prompt_id: event.prompt_id,
+          tool_name: event.tool_name,
+        },
+      },
+    );
+
+    this.enqueueLogEvent(rumEvent);
+    this.flushIfNeeded();
+  }
+
   logEndSessionEvent(_event: EndSessionEvent): void {
     const applicationEvent = this.createViewEvent('session', 'session_end', {});
 

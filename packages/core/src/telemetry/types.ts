@@ -535,6 +535,33 @@ export class SubagentExecutionEvent implements BaseTelemetryEvent {
   }
 }
 
+export enum UserCancellationType {
+  REQUEST_CANCELLED = 'request_cancelled',
+  TOOL_CALL_CANCELLED = 'tool_call_cancelled',
+}
+
+export class UserCancellationEvent implements BaseTelemetryEvent {
+  'event.name': 'user_cancellation';
+  'event.timestamp': string;
+  cancellation_type: UserCancellationType;
+  prompt_id?: string;
+  tool_name?: string;
+
+  constructor(
+    cancellation_type: UserCancellationType,
+    options?: {
+      prompt_id?: string;
+      tool_name?: string;
+    },
+  ) {
+    this['event.name'] = 'user_cancellation';
+    this['event.timestamp'] = new Date().toISOString();
+    this.cancellation_type = cancellation_type;
+    this.prompt_id = options?.prompt_id;
+    this.tool_name = options?.tool_name;
+  }
+}
+
 export type TelemetryEvent =
   | StartSessionEvent
   | EndSessionEvent
@@ -555,4 +582,5 @@ export type TelemetryEvent =
   | InvalidChunkEvent
   | ContentRetryEvent
   | ContentRetryFailureEvent
-  | SubagentExecutionEvent;
+  | SubagentExecutionEvent
+  | UserCancellationEvent;

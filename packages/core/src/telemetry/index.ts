@@ -26,6 +26,7 @@ export {
   logKittySequenceOverflow,
   logSlashCommand,
   logToolCall,
+  logUserCancellation,
   logUserPrompt,
 } from './loggers.js';
 export {
@@ -46,6 +47,8 @@ export {
   SlashCommandStatus,
   StartSessionEvent,
   ToolCallEvent,
+  UserCancellationEvent,
+  UserCancellationType,
   UserPromptEvent,
 } from './types.js';
 export type {
@@ -54,4 +57,5 @@ export type {
   TelemetryEvent,
 } from './types.js';
 export * from './uiTelemetry.js';
+export { QwenLogger } from './qwen-logger/qwen-logger.js';
 export { DEFAULT_OTLP_ENDPOINT, DEFAULT_TELEMETRY_TARGET };

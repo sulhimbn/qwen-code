@@ -25,6 +25,7 @@ export const EVENT_CONVERSATION_FINISHED = 'qwen-code.conversation_finished';
 export const EVENT_MALFORMED_JSON_RESPONSE =
   'qwen-code.malformed_json_response';
 export const EVENT_SUBAGENT_EXECUTION = 'qwen-code.subagent_execution';
+export const EVENT_USER_CANCELLATION = 'qwen-code.user_cancellation';
 
 export const METRIC_TOOL_CALL_COUNT = 'qwen-code.tool.call.count';
 export const METRIC_TOOL_CALL_LATENCY = 'qwen-code.tool.call.latency';

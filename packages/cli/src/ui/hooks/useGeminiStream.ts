@@ -31,6 +31,9 @@ import {
   ConversationFinishedEvent,
   ApprovalMode,
   parseAndFormatApiError,
+  logUserCancellation,
+  UserCancellationEvent,
+  UserCancellationType,
 } from '@qwen-code/qwen-code-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -448,6 +451,17 @@ export const useGeminiStream = (
       if (turnCancelledRef.current) {
         return;
       }
+
+      // Log user cancellation event
+      const prompt_id = config.getSessionId() + '########' + getPromptCount();
+      const cancellationEvent = new UserCancellationEvent(
+        UserCancellationType.REQUEST_CANCELLED,
+        {
+          prompt_id,
+        },
+      );
+      logUserCancellation(config, cancellationEvent);
+
       if (pendingHistoryItemRef.current) {
         if (pendingHistoryItemRef.current.type === 'tool_group') {
           const updatedTools = pendingHistoryItemRef.current.tools.map(
@@ -475,7 +489,14 @@ export const useGeminiStream = (
       setIsResponding(false);
       setThought(null); // Reset thought when user cancels
     },
-    [addItem, pendingHistoryItemRef, setPendingHistoryItem, setThought],
+    [
+      addItem,
+      pendingHistoryItemRef,
+      setPendingHistoryItem,
+      setThought,
+      config,
+      getPromptCount,
+    ],
   );
 
   const handleErrorEvent = useCallback(
