@@ -31,9 +31,8 @@ import {
   ConversationFinishedEvent,
   ApprovalMode,
   parseAndFormatApiError,
-  logUserCancellation,
-  UserCancellationEvent,
-  UserCancellationType,
+  logApiCancel,
+  ApiCancelEvent,
 } from '@qwen-code/qwen-code-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -226,6 +225,16 @@ export const useGeminiStream = (
     turnCancelledRef.current = true;
     isSubmittingQueryRef.current = false;
     abortControllerRef.current?.abort();
+
+    // Log API cancellation
+    const prompt_id = config.getSessionId() + '########' + getPromptCount();
+    const cancellationEvent = new ApiCancelEvent(
+      config.getModel(),
+      prompt_id,
+      config.getContentGeneratorConfig()?.authType,
+    );
+    logApiCancel(config, cancellationEvent);
+
     if (pendingHistoryItemRef.current) {
       addItem(pendingHistoryItemRef.current, Date.now());
     }
@@ -245,6 +254,8 @@ export const useGeminiStream = (
     setPendingHistoryItem,
     onCancelSubmit,
     pendingHistoryItemRef,
+    config,
+    getPromptCount,
   ]);
 
   useKeypress(
@@ -452,16 +463,6 @@ export const useGeminiStream = (
         return;
       }
 
-      // Log user cancellation event
-      const prompt_id = config.getSessionId() + '########' + getPromptCount();
-      const cancellationEvent = new UserCancellationEvent(
-        UserCancellationType.REQUEST_CANCELLED,
-        {
-          prompt_id,
-        },
-      );
-      logUserCancellation(config, cancellationEvent);
-
       if (pendingHistoryItemRef.current) {
         if (pendingHistoryItemRef.current.type === 'tool_group') {
           const updatedTools = pendingHistoryItemRef.current.tools.map(
@@ -489,14 +490,7 @@ export const useGeminiStream = (
       setIsResponding(false);
       setThought(null); // Reset thought when user cancels
     },
-    [
-      addItem,
-      pendingHistoryItemRef,
-      setPendingHistoryItem,
-      setThought,
-      config,
-      getPromptCount,
-    ],
+    [addItem, pendingHistoryItemRef, setPendingHistoryItem, setThought],
   );
 
   const handleErrorEvent = useCallback(

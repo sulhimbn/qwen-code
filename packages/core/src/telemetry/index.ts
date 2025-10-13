@@ -17,6 +17,7 @@ export { SpanStatusCode, ValueType } from '@opentelemetry/api';
 export { SemanticAttributes } from '@opentelemetry/semantic-conventions';
 export {
   logApiError,
+  logApiCancel,
   logApiRequest,
   logApiResponse,
   logChatCompression,
@@ -26,7 +27,6 @@ export {
   logKittySequenceOverflow,
   logSlashCommand,
   logToolCall,
-  logUserCancellation,
   logUserPrompt,
 } from './loggers.js';
 export {
@@ -36,6 +36,7 @@ export {
 } from './sdk.js';
 export {
   ApiErrorEvent,
+  ApiCancelEvent,
   ApiRequestEvent,
   ApiResponseEvent,
   ConversationFinishedEvent,
@@ -47,8 +48,6 @@ export {
   SlashCommandStatus,
   StartSessionEvent,
   ToolCallEvent,
-  UserCancellationEvent,
-  UserCancellationType,
   UserPromptEvent,
 } from './types.js';
 export type {

@@ -21,8 +21,6 @@ import {
   IdeConnectionEvent,
   KittySequenceOverflowEvent,
   IdeConnectionType,
-  UserCancellationEvent,
-  UserCancellationType,
 } from '../types.js';
 import type { RumEvent } from './event-types.js';
 
@@ -319,85 +317,6 @@ describe('QwenLogger', () => {
       logger.logEndSessionEvent(event);
 
       expect(flushSpy).toHaveBeenCalled();
-    });
-
-    it('should log user cancellation events for request cancellation', () => {
-      const logger = QwenLogger.getInstance(mockConfig)!;
-      const enqueueSpy = vi.spyOn(logger, 'enqueueLogEvent');
-
-      const event = new UserCancellationEvent(
-        UserCancellationType.REQUEST_CANCELLED,
-        {
-          prompt_id: 'test-prompt-123',
-        },
-      );
-
-      logger.logUserCancellationEvent(event);
-
-      expect(enqueueSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event_type: 'action',
-          type: 'cancellation',
-          name: 'user_cancellation',
-          properties: {
-            cancellation_type: UserCancellationType.REQUEST_CANCELLED,
-            prompt_id: 'test-prompt-123',
-            tool_name: undefined,
-          },
-        }),
-      );
-    });
-
-    it('should log user cancellation events for tool call cancellation', () => {
-      const logger = QwenLogger.getInstance(mockConfig)!;
-      const enqueueSpy = vi.spyOn(logger, 'enqueueLogEvent');
-
-      const event = new UserCancellationEvent(
-        UserCancellationType.TOOL_CALL_CANCELLED,
-        {
-          prompt_id: 'test-prompt-456',
-          tool_name: 'read_file',
-        },
-      );
-
-      logger.logUserCancellationEvent(event);
-
-      expect(enqueueSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event_type: 'action',
-          type: 'cancellation',
-          name: 'user_cancellation',
-          properties: {
-            cancellation_type: UserCancellationType.TOOL_CALL_CANCELLED,
-            prompt_id: 'test-prompt-456',
-            tool_name: 'read_file',
-          },
-        }),
-      );
-    });
-
-    it('should log user cancellation events with minimal data', () => {
-      const logger = QwenLogger.getInstance(mockConfig)!;
-      const enqueueSpy = vi.spyOn(logger, 'enqueueLogEvent');
-
-      const event = new UserCancellationEvent(
-        UserCancellationType.REQUEST_CANCELLED,
-      );
-
-      logger.logUserCancellationEvent(event);
-
-      expect(enqueueSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event_type: 'action',
-          type: 'cancellation',
-          name: 'user_cancellation',
-          properties: {
-            cancellation_type: UserCancellationType.REQUEST_CANCELLED,
-            prompt_id: undefined,
-            tool_name: undefined,
-          },
-        }),
-      );
     });
   });
 

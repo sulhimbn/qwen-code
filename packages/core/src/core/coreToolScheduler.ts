@@ -23,9 +23,6 @@ import {
   logToolCall,
   ToolErrorType,
   ToolCallEvent,
-  logUserCancellation,
-  UserCancellationEvent,
-  UserCancellationType,
 } from '../index.js';
 import type { Part, PartListUnion } from '@google/genai';
 import { getResponseTextFromParts } from '../utils/generateContentResponseUtilities.js';
@@ -429,9 +426,6 @@ export class CoreToolScheduler {
             durationMs,
             outcome,
           } as CancelledToolCall;
-
-          // Log the tool call cancellation
-          this.logToolCallCancellation(cancelledCall);
 
           return cancelledCall;
         }
@@ -1017,17 +1011,6 @@ export class CoreToolScheduler {
     if (this.onToolCallsUpdate) {
       this.onToolCallsUpdate([...this.toolCalls]);
     }
-  }
-
-  private logToolCallCancellation(toolCall: ToolCall): void {
-    const cancellationEvent = new UserCancellationEvent(
-      UserCancellationType.TOOL_CALL_CANCELLED,
-      {
-        prompt_id: toolCall.request.prompt_id,
-        tool_name: toolCall.request.name,
-      },
-    );
-    logUserCancellation(this.config, cancellationEvent);
   }
 
   private setToolCallOutcome(callId: string, outcome: ToolConfirmationOutcome) {

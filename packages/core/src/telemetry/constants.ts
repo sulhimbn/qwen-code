@@ -10,6 +10,7 @@ export const EVENT_USER_PROMPT = 'qwen-code.user_prompt';
 export const EVENT_TOOL_CALL = 'qwen-code.tool_call';
 export const EVENT_API_REQUEST = 'qwen-code.api_request';
 export const EVENT_API_ERROR = 'qwen-code.api_error';
+export const EVENT_API_CANCEL = 'qwen-code.api_cancel';
 export const EVENT_API_RESPONSE = 'qwen-code.api_response';
 export const EVENT_CLI_CONFIG = 'qwen-code.config';
 export const EVENT_FLASH_FALLBACK = 'qwen-code.flash_fallback';
@@ -25,7 +26,6 @@ export const EVENT_CONVERSATION_FINISHED = 'qwen-code.conversation_finished';
 export const EVENT_MALFORMED_JSON_RESPONSE =
   'qwen-code.malformed_json_response';
 export const EVENT_SUBAGENT_EXECUTION = 'qwen-code.subagent_execution';
-export const EVENT_USER_CANCELLATION = 'qwen-code.user_cancellation';
 
 export const METRIC_TOOL_CALL_COUNT = 'qwen-code.tool.call.count';
 export const METRIC_TOOL_CALL_LATENCY = 'qwen-code.tool.call.latency';

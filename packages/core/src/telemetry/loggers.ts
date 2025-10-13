@@ -12,6 +12,7 @@ import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 import { UserAccountManager } from '../utils/userAccountManager.js';
 import {
   EVENT_API_ERROR,
+  EVENT_API_CANCEL,
   EVENT_API_REQUEST,
   EVENT_API_RESPONSE,
   EVENT_CHAT_COMPRESSION,
@@ -26,7 +27,6 @@ import {
   EVENT_SLASH_COMMAND,
   EVENT_SUBAGENT_EXECUTION,
   EVENT_TOOL_CALL,
-  EVENT_USER_CANCELLATION,
   EVENT_USER_PROMPT,
   SERVICE_NAME,
 } from './constants.js';
@@ -46,6 +46,7 @@ import { QwenLogger } from './qwen-logger/qwen-logger.js';
 import { isTelemetrySdkInitialized } from './sdk.js';
 import type {
   ApiErrorEvent,
+  ApiCancelEvent,
   ApiRequestEvent,
   ApiResponseEvent,
   ChatCompressionEvent,
@@ -63,7 +64,6 @@ import type {
   StartSessionEvent,
   SubagentExecutionEvent,
   ToolCallEvent,
-  UserCancellationEvent,
   UserPromptEvent,
 } from './types.js';
 import { type UiEvent, uiTelemetryService } from './uiTelemetry.js';
@@ -282,6 +282,32 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
     event.status_code,
     event.error_type,
   );
+}
+
+export function logApiCancel(config: Config, event: ApiCancelEvent): void {
+  const uiEvent = {
+    ...event,
+    'event.name': EVENT_API_CANCEL,
+    'event.timestamp': new Date().toISOString(),
+  } as UiEvent;
+  uiTelemetryService.addEvent(uiEvent);
+  QwenLogger.getInstance(config)?.logApiCancelEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_API_CANCEL,
+    'event.timestamp': new Date().toISOString(),
+    model_name: event.model,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `API request cancelled for ${event.model}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
 }
 
 export function logApiResponse(config: Config, event: ApiResponseEvent): void {
@@ -592,26 +618,4 @@ export function logSubagentExecution(
     event.status,
     event.terminate_reason,
   );
-}
-
-export function logUserCancellation(
-  config: Config,
-  event: UserCancellationEvent,
-): void {
-  QwenLogger.getInstance(config)?.logUserCancellationEvent(event);
-  if (!isTelemetrySdkInitialized()) return;
-
-  const attributes: LogAttributes = {
-    ...getCommonAttributes(config),
-    ...event,
-    'event.name': EVENT_USER_CANCELLATION,
-    'event.timestamp': new Date().toISOString(),
-  };
-
-  const logger = logs.getLogger(SERVICE_NAME);
-  const logRecord: LogRecord = {
-    body: `User cancellation: ${event.cancellation_type}.`,
-    attributes,
-  };
-  logger.emit(logRecord);
 }
