@@ -6,36 +6,35 @@
 
 export const SERVICE_NAME = 'qwen-code';
 
-export const EVENT_USER_PROMPT = 'qwen-code.user_prompt';
-export const EVENT_TOOL_CALL = 'qwen-code.tool_call';
-export const EVENT_API_REQUEST = 'qwen-code.api_request';
-export const EVENT_API_ERROR = 'qwen-code.api_error';
-export const EVENT_API_RESPONSE = 'qwen-code.api_response';
-export const EVENT_CLI_CONFIG = 'qwen-code.config';
-export const EVENT_FLASH_FALLBACK = 'qwen-code.flash_fallback';
-export const EVENT_NEXT_SPEAKER_CHECK = 'qwen-code.next_speaker_check';
-export const EVENT_SLASH_COMMAND = 'qwen-code.slash_command';
-export const EVENT_IDE_CONNECTION = 'qwen-code.ide_connection';
-export const EVENT_CHAT_COMPRESSION = 'qwen-code.chat_compression';
-export const EVENT_INVALID_CHUNK = 'qwen-code.chat.invalid_chunk';
-export const EVENT_CONTENT_RETRY = 'qwen-code.chat.content_retry';
-export const EVENT_CONTENT_RETRY_FAILURE =
-  'qwen-code.chat.content_retry_failure';
-export const EVENT_CONVERSATION_FINISHED = 'qwen-code.conversation_finished';
+export const EVENT_USER_PROMPT = 'qwen_code.user_prompt';
+export const EVENT_TOOL_CALL = 'qwen_code.tool_call';
+export const EVENT_API_REQUEST = 'qwen_code.api_request';
+export const EVENT_API_ERROR = 'qwen_code.api_error';
+export const EVENT_API_RESPONSE = 'qwen_code.api_response';
+export const EVENT_CLI_CONFIG = 'qwen_code.config';
+export const EVENT_EXTENSION_DISABLE = 'qwen_code.extension_disable';
+export const EVENT_EXTENSION_ENABLE = 'qwen_code.extension_enable';
+export const EVENT_EXTENSION_INSTALL = 'qwen_code.extension_install';
+export const EVENT_EXTENSION_UNINSTALL = 'qwen_code.extension_uninstall';
+export const EVENT_FLASH_FALLBACK = 'qwen_code.flash_fallback';
+export const EVENT_RIPGREP_FALLBACK = 'qwen_code.ripgrep_fallback';
+export const EVENT_NEXT_SPEAKER_CHECK = 'qwen_code.next_speaker_check';
+export const EVENT_SLASH_COMMAND = 'qwen_code.slash_command';
+export const EVENT_IDE_CONNECTION = 'qwen_code.ide_connection';
+export const EVENT_CONVERSATION_FINISHED = 'qwen_code.conversation_finished';
+export const EVENT_CHAT_COMPRESSION = 'qwen_code.chat_compression';
 export const EVENT_MALFORMED_JSON_RESPONSE =
-  'qwen-code.malformed_json_response';
+  'qwen_code.malformed_json_response';
+export const EVENT_INVALID_CHUNK = 'qwen_code.chat.invalid_chunk';
+export const EVENT_CONTENT_RETRY = 'qwen_code.chat.content_retry';
+export const EVENT_CONTENT_RETRY_FAILURE =
+  'qwen_code.chat.content_retry_failure';
+export const EVENT_FILE_OPERATION = 'qwen_code.file_operation';
+export const EVENT_MODEL_SLASH_COMMAND = 'qwen_code.slash_command.model';
 export const EVENT_SUBAGENT_EXECUTION = 'qwen-code.subagent_execution';
 
-export const METRIC_TOOL_CALL_COUNT = 'qwen-code.tool.call.count';
-export const METRIC_TOOL_CALL_LATENCY = 'qwen-code.tool.call.latency';
-export const METRIC_API_REQUEST_COUNT = 'qwen-code.api.request.count';
-export const METRIC_API_REQUEST_LATENCY = 'qwen-code.api.request.latency';
-export const METRIC_TOKEN_USAGE = 'qwen-code.token.usage';
-export const METRIC_SESSION_COUNT = 'qwen-code.session.count';
-export const METRIC_FILE_OPERATION_COUNT = 'qwen-code.file.operation.count';
-export const METRIC_INVALID_CHUNK_COUNT = 'qwen-code.chat.invalid_chunk.count';
-export const METRIC_CONTENT_RETRY_COUNT = 'qwen-code.chat.content_retry.count';
-export const METRIC_CONTENT_RETRY_FAILURE_COUNT =
-  'qwen-code.chat.content_retry_failure.count';
-export const METRIC_SUBAGENT_EXECUTION_COUNT =
-  'qwen-code.subagent.execution.count';
+// Performance Events
+export const EVENT_STARTUP_PERFORMANCE = 'qwen_code.startup.performance';
+export const EVENT_MEMORY_USAGE = 'qwen_code.memory.usage';
+export const EVENT_PERFORMANCE_BASELINE = 'qwen_code.performance.baseline';
+export const EVENT_PERFORMANCE_REGRESSION = 'qwen_code.performance.regression';
