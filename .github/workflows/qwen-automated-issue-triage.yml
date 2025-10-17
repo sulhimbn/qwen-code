@@ -143,7 +143,7 @@ jobs:
 
             category/authentication: Authentication and authorization
             - Issues with login flows, API keys, OAuth, credential storage
-            - Related scopes: scope/oauth, scope/api-keys, scope/token-storage, scope/google-auth
+            - Related scopes: scope/oauth, scope/api-keys, scope/token-storage
 
             category/tools: Tool integration and execution
             - Issues with MCP, shell execution, file operations, web search, memory, git integration

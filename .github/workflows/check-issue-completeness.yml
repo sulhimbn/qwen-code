@@ -115,7 +115,7 @@ jobs:
               comment.body.includes('Missing Required Information')
             );
 
-            const commentBody = `## ⚠️ Missing Required Information
+            const commentBody = `### ⚠️ Missing Required Information
 
             Thank you for reporting this issue! To help us investigate and resolve this problem more effectively, we need some additional information:
 
