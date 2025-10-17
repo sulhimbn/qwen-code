@@ -64,7 +64,7 @@ describe('Interactive file system', () => {
       await type(ptyProcess, '\r');
 
       const toolCall = await rig.waitForAnyToolCall(
-        ['write_file', 'replace'],
+        ['write_file', 'edit'],
         30000,
       );
 
@@ -74,10 +74,9 @@ describe('Interactive file system', () => {
         });
       }
 
-      expect(
-        toolCall,
-        'Expected to find a write_file or replace tool call',
-      ).toBe(true);
+      expect(toolCall, 'Expected to find a write_file or edit tool call').toBe(
+        true,
+      );
 
       const newFileContent = rig.readFile(fileName);
       expect(newFileContent).toBe('1.0.1');
