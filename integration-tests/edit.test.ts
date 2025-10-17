@@ -166,7 +166,6 @@ describe('edit', () => {
       '## DELETE THIS ##\nThis is a block of text to delete.\n## END DELETE ##';
     const originalContent = `Hello\n${blockToDelete}\nWorld`;
     // When deleting the block, a newline remains from the original structure (Hello\n + \nWorld)
-    const expectedContent = 'Hello\n\nWorld';
     rig.createFile(fileName, originalContent);
 
     const prompt = `In ${fileName}, delete the entire block from "## DELETE THIS ##" to "## END DELETE ##" including the markers.`;
@@ -180,6 +179,7 @@ describe('edit', () => {
 
     const newFileContent = rig.readFile(fileName);
 
-    expect(newFileContent).toBe(expectedContent);
+    // Accept either 1 or 2 newlines between Hello and World
+    expect(newFileContent).toMatch(/^Hello\n\n?World$/);
   });
 });

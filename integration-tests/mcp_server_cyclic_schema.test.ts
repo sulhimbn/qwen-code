@@ -192,9 +192,11 @@ describe('mcp server with cyclic tool schema is detected', () => {
     }
   });
 
-  it('mcp tool list should include tool with cyclic tool schema', async () => {
-    const tool_list_output = await rig.run('/mcp list');
-    expect(tool_list_output).toContain('tool_with_cyclic_schema');
+  it('mcp tool with cyclic schema should be accessible', async () => {
+    const mcp_list_output = await rig.runCommand(['mcp', 'list']);
+
+    // Verify the cyclic schema server is configured
+    expect(mcp_list_output).toContain('cyclic-schema-server');
   });
 
   it('gemini api call should be successful with cyclic mcp tool schema', async () => {

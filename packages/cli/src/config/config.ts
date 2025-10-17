@@ -525,20 +525,6 @@ export async function loadCliConfig(
   const activeExtensions = extensions.filter(
     (_, i) => allExtensions[i].isActive,
   );
-  // Handle OpenAI API key from command line
-  if (argv.openaiApiKey) {
-    process.env['OPENAI_API_KEY'] = argv.openaiApiKey;
-  }
-
-  // Handle OpenAI base URL from command line
-  if (argv.openaiBaseUrl) {
-    process.env['OPENAI_BASE_URL'] = argv.openaiBaseUrl;
-  }
-
-  // Handle Tavily API key from command line
-  if (argv.tavilyApiKey) {
-    process.env['TAVILY_API_KEY'] = argv.tavilyApiKey;
-  }
 
   // Set the context filename in the server's memoryTool module BEFORE loading memory
   // TODO(b/343434939): This is a bit of a hack. The contextFileName should ideally be passed
@@ -690,6 +676,7 @@ export async function loadCliConfig(
   const defaultModel = DEFAULT_QWEN_MODEL;
   const resolvedModel: string =
     argv.model ||
+    process.env['OPENAI_MODEL'] ||
     process.env['QWEN_MODEL'] ||
     settings.model?.name ||
     defaultModel;
@@ -745,6 +732,8 @@ export async function loadCliConfig(
     fileDiscoveryService: fileService,
     bugCommand: settings.advanced?.bugCommand,
     model: resolvedModel,
+    apiKey: argv.openaiApiKey || process.env['OPENAI_API_KEY'],
+    baseUrl: argv.openaiBaseUrl || process.env['OPENAI_BASE_URL'],
     extensionContextFilePaths,
     sessionTokenLimit: settings.model?.sessionTokenLimit ?? -1,
     maxSessionTurns: settings.model?.maxSessionTurns ?? -1,

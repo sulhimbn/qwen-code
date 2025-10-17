@@ -236,6 +236,8 @@ export interface ConfigParameters {
   includeDirectories?: string[];
   bugCommand?: BugCommandSettings;
   model: string;
+  apiKey?: string;
+  baseUrl?: string;
   extensionContextFilePaths?: string[];
   maxSessionTurns?: number;
   sessionTokenLimit?: number;
@@ -447,6 +449,8 @@ export class Config {
     this.systemPromptMappings = params.systemPromptMappings;
     this.contentGeneratorConfig = {
       model: params.model,
+      apiKey: params.apiKey,
+      baseUrl: params.baseUrl,
       enableOpenAILogging: params.enableOpenAILogging ?? false,
       ...(params.contentGeneratorConfig || {}),
     };

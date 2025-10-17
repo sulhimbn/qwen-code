@@ -91,6 +91,7 @@ export function createContentGeneratorConfig(
     ...(contentGeneratorConfig || {}),
     model:
       contentGeneratorConfig?.model ||
+      process.env['OPENAI_MODEL'] ||
       process.env['QWEN_MODEL'] ||
       DEFAULT_QWEN_MODEL,
     authType,

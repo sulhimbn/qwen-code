@@ -20,8 +20,8 @@ export default defineConfig({
     fileParallelism: true,
     poolOptions: {
       threads: {
-        minThreads: 8,
-        maxThreads: 16,
+        minThreads: 2,
+        maxThreads: 4,
       },
     },
   },
