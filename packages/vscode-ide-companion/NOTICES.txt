@@ -2161,12 +2161,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ============================================================
-mime@3.0.0
-(No repository found)
-
-License text not found.
-
-============================================================
 serve-static@1.16.2
 (No repository found)
 

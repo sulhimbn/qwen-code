@@ -986,11 +986,26 @@ Logging in with Google... Please restart Gemini CLI to continue.
       // First press: Prioritize cleanup tasks
 
       // 1. Close other dialogs (highest priority)
+      /**
+       * For AuthDialog it is required to complete the authentication process,
+       * otherwise user cannot proceed to the next step.
+       * So a quit on AuthDialog should go with normal two press quit
+       * and without quit-confirm dialog.
+       */
+      if (isAuthDialogOpen) {
+        setPressedOnce(true);
+        timerRef.current = setTimeout(() => {
+          setPressedOnce(false);
+        }, 500);
+        return;
+      }
+
+      // 2. Close other dialogs (highest priority)
       if (closeAnyOpenDialog()) {
         return; // Dialog closed, end processing
       }
 
-      // 2. Cancel ongoing requests
+      // 3. Cancel ongoing requests
       if (streamingState === StreamingState.Responding) {
         cancelOngoingRequest?.();
         return; // Request cancelled, end processing
@@ -1006,6 +1021,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       handleSlashCommand('/quit-confirm');
     },
     [
+      isAuthDialogOpen,
       handleSlashCommand,
       closeAnyOpenDialog,
       streamingState,

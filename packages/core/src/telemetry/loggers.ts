@@ -12,6 +12,7 @@ import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 import { UserAccountManager } from '../utils/userAccountManager.js';
 import {
   EVENT_API_ERROR,
+  EVENT_API_CANCEL,
   EVENT_API_REQUEST,
   EVENT_API_RESPONSE,
   EVENT_CLI_CONFIG,
@@ -54,6 +55,7 @@ import { QwenLogger } from './qwen-logger/qwen-logger.js';
 import { isTelemetrySdkInitialized } from './sdk.js';
 import type {
   ApiErrorEvent,
+  ApiCancelEvent,
   ApiRequestEvent,
   ApiResponseEvent,
   FileOperationEvent,
@@ -366,6 +368,32 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
     status_code: event.status_code,
     error_type: event.error_type,
   });
+}
+
+export function logApiCancel(config: Config, event: ApiCancelEvent): void {
+  const uiEvent = {
+    ...event,
+    'event.name': EVENT_API_CANCEL,
+    'event.timestamp': new Date().toISOString(),
+  } as UiEvent;
+  uiTelemetryService.addEvent(uiEvent);
+  QwenLogger.getInstance(config)?.logApiCancelEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_API_CANCEL,
+    'event.timestamp': new Date().toISOString(),
+    model_name: event.model,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `API request cancelled for ${event.model}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
 }
 
 export function logApiResponse(config: Config, event: ApiResponseEvent): void {

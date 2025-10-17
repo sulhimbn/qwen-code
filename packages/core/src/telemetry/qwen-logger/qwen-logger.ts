@@ -15,6 +15,7 @@ import type {
   ApiRequestEvent,
   ApiResponseEvent,
   ApiErrorEvent,
+  ApiCancelEvent,
   FileOperationEvent,
   FlashFallbackEvent,
   LoopDetectedEvent,
@@ -417,6 +418,7 @@ export class QwenLogger {
       {
         properties: {
           prompt_id: event.prompt_id,
+          response_id: event.response_id,
         },
         snapshots: JSON.stringify({
           function_name: event.function_name,
@@ -428,6 +430,19 @@ export class QwenLogger {
         }),
       },
     );
+
+    this.enqueueLogEvent(rumEvent);
+    this.flushIfNeeded();
+  }
+
+  logApiCancelEvent(event: ApiCancelEvent): void {
+    const rumEvent = this.createActionEvent('api', 'api_cancel', {
+      properties: {
+        model: event.model,
+        prompt_id: event.prompt_id,
+        auth_type: event.auth_type,
+      },
+    });
 
     this.enqueueLogEvent(rumEvent);
     this.flushIfNeeded();

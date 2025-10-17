@@ -33,6 +33,8 @@ import {
   parseAndFormatApiError,
   promptIdContext,
   ToolConfirmationOutcome,
+  logApiCancel,
+  ApiCancelEvent,
 } from '@qwen-code/qwen-code-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -266,6 +268,16 @@ export const useGeminiStream = (
     turnCancelledRef.current = true;
     isSubmittingQueryRef.current = false;
     abortControllerRef.current?.abort();
+
+    // Log API cancellation
+    const prompt_id = config.getSessionId() + '########' + getPromptCount();
+    const cancellationEvent = new ApiCancelEvent(
+      config.getModel(),
+      prompt_id,
+      config.getContentGeneratorConfig()?.authType,
+    );
+    logApiCancel(config, cancellationEvent);
+
     if (pendingHistoryItemRef.current) {
       addItem(pendingHistoryItemRef.current, Date.now());
     }
@@ -287,6 +299,8 @@ export const useGeminiStream = (
     onCancelSubmit,
     pendingHistoryItemRef,
     setShellInputFocused,
+    config,
+    getPromptCount,
   ]);
 
   useKeypress(
@@ -484,6 +498,7 @@ export const useGeminiStream = (
       if (turnCancelledRef.current) {
         return;
       }
+
       if (pendingHistoryItemRef.current) {
         if (pendingHistoryItemRef.current.type === 'tool_group') {
           const updatedTools = pendingHistoryItemRef.current.tools.map(
