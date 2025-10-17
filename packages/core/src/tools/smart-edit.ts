@@ -18,6 +18,7 @@ import {
   type ToolResult,
   type ToolResultDisplay,
 } from './tools.js';
+import { ToolNames } from './tool-names.js';
 import { ToolErrorType } from './tool-error.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { isNodeError } from '../utils/errors.js';
@@ -769,7 +770,7 @@ export class SmartEditTool
   extends BaseDeclarativeTool<EditToolParams, ToolResult>
   implements ModifiableDeclarativeTool<EditToolParams>
 {
-  static readonly Name = 'replace';
+  static readonly Name = ToolNames.EDIT;
 
   constructor(private readonly config: Config) {
     super(

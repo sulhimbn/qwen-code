@@ -245,7 +245,7 @@ Logs are timestamped records of specific events. The following events are logged
     - `content_length` (int, if applicable)
     - `metadata` (if applicable, dictionary of string -> any)
 
-- `qwen_code.file_operation`: This event occurs for each file operation.
+- `qwen-code.file_operation`: This event occurs for each file operation.
   - **Attributes**:
     - `tool_name` (string)
     - `operation` (string: "create", "read", "update")
@@ -259,7 +259,7 @@ Logs are timestamped records of specific events. The following events are logged
       - `user_added_lines` (int)
       - `user_removed_lines` (int)
 
-- `qwen_code.api_request`: This event occurs when making a request to Qwen API.
+- `qwen-code.api_request`: This event occurs when making a request to Qwen API.
   - **Attributes**:
     - `model`
     - `request_text` (if applicable)
@@ -287,7 +287,7 @@ Logs are timestamped records of specific events. The following events are logged
     - `response_text` (if applicable)
     - `auth_type`
 
-- `qwen_code.tool_output_truncated`: This event occurs when the output of a tool call is too large and gets truncated.
+- `qwen-code.tool_output_truncated`: This event occurs when the output of a tool call is too large and gets truncated.
   - **Attributes**:
     - `tool_name` (string)
     - `original_content_length` (int)
@@ -296,11 +296,11 @@ Logs are timestamped records of specific events. The following events are logged
     - `lines` (int)
     - `prompt_id` (string)
 
-- `qwen_code.malformed_json_response`: This event occurs when a `generateJson` response from Qwen API cannot be parsed as a json.
+- `qwen-code.malformed_json_response`: This event occurs when a `generateJson` response from Qwen API cannot be parsed as a json.
   - **Attributes**:
     - `model`
 
-- `qwen_code.flash_fallback`: This event occurs when Qwen Code switches to flash as fallback.
+- `qwen-code.flash_fallback`: This event occurs when Qwen Code switches to flash as fallback.
   - **Attributes**:
     - `auth_type`
 
@@ -309,14 +309,14 @@ Logs are timestamped records of specific events. The following events are logged
     - `command` (string)
     - `subcommand` (string, if applicable)
 
-- `qwen_code.extension_enable`: This event occurs when an extension is enabled
-- `qwen_code.extension_install`: This event occurs when an extension is installed
+- `qwen-code.extension_enable`: This event occurs when an extension is enabled
+- `qwen-code.extension_install`: This event occurs when an extension is installed
   - **Attributes**:
     - `extension_name` (string)
     - `extension_version` (string)
     - `extension_source` (string)
     - `status` (string)
-- `qwen_code.extension_uninstall`: This event occurs when an extension is uninstalled
+- `qwen-code.extension_uninstall`: This event occurs when an extension is uninstalled
 
 ### Metrics
 

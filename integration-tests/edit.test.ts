@@ -78,13 +78,13 @@ describe('edit', () => {
       "Open regex.yml and append ' # updated' after the line containing ^[sv]d[a-z]$ without breaking the $ character.";
 
     const result = await rig.run(prompt);
-    const foundToolCall = await rig.waitForToolCall('replace');
+    const foundToolCall = await rig.waitForToolCall('edit');
 
     if (!foundToolCall) {
       printDebugInfo(rig, result);
     }
 
-    expect(foundToolCall, 'Expected to find a replace tool call').toBeTruthy();
+    expect(foundToolCall, 'Expected to find an edit tool call').toBeTruthy();
 
     validateModelOutput(result, ['regex.yml'], 'Replace $ literal test');
 
@@ -105,30 +105,26 @@ describe('edit', () => {
     await rig.waitForTelemetryReady();
     const toolLogs = rig.readToolLogs();
 
-    const replaceAttempt = toolLogs.find(
-      (log) => log.toolRequest.name === 'replace',
-    );
+    const editAttempt = toolLogs.find((log) => log.toolRequest.name === 'edit');
     const readAttempt = toolLogs.find(
       (log) => log.toolRequest.name === 'read_file',
     );
 
-    // VERIFY: The model must have at least tried to read the file or perform a replace.
+    // VERIFY: The model must have at least tried to read the file or perform an edit.
     expect(
-      readAttempt || replaceAttempt,
-      'Expected model to attempt a read_file or replace',
+      readAttempt || editAttempt,
+      'Expected model to attempt a read_file or edit',
     ).toBeDefined();
 
-    // If the model tried to replace, that specific attempt must have failed.
-    if (replaceAttempt) {
-      if (replaceAttempt.toolRequest.success) {
-        console.error(
-          'The replace tool succeeded when it was expected to fail',
-        );
-        console.error('Tool call args:', replaceAttempt.toolRequest.args);
+    // If the model tried to edit, that specific attempt must have failed.
+    if (editAttempt) {
+      if (editAttempt.toolRequest.success) {
+        console.error('The edit tool succeeded when it was expected to fail');
+        console.error('Tool call args:', editAttempt.toolRequest.args);
       }
       expect(
-        replaceAttempt.toolRequest.success,
-        'If replace is called, it must fail',
+        editAttempt.toolRequest.success,
+        'If edit is called, it must fail',
       ).toBe(false);
     }
 
@@ -149,11 +145,11 @@ describe('edit', () => {
     const prompt = `In ${fileName}, replace "// INSERT_CODE_HERE" with:\n${newBlock}`;
     const result = await rig.run(prompt);
 
-    const foundToolCall = await rig.waitForToolCall('replace');
+    const foundToolCall = await rig.waitForToolCall('edit');
     if (!foundToolCall) {
       printDebugInfo(rig, result);
     }
-    expect(foundToolCall, 'Expected to find a replace tool call').toBeTruthy();
+    expect(foundToolCall, 'Expected to find an edit tool call').toBeTruthy();
 
     const newFileContent = rig.readFile(fileName);
 
@@ -169,17 +165,18 @@ describe('edit', () => {
     const blockToDelete =
       '## DELETE THIS ##\nThis is a block of text to delete.\n## END DELETE ##';
     const originalContent = `Hello\n${blockToDelete}\nWorld`;
-    const expectedContent = 'Hello\nWorld';
+    // When deleting the block, a newline remains from the original structure (Hello\n + \nWorld)
+    const expectedContent = 'Hello\n\nWorld';
     rig.createFile(fileName, originalContent);
 
     const prompt = `In ${fileName}, delete the entire block from "## DELETE THIS ##" to "## END DELETE ##" including the markers.`;
     const result = await rig.run(prompt);
 
-    const foundToolCall = await rig.waitForToolCall('replace');
+    const foundToolCall = await rig.waitForToolCall('edit');
     if (!foundToolCall) {
       printDebugInfo(rig, result);
     }
-    expect(foundToolCall, 'Expected to find a replace tool call').toBeTruthy();
+    expect(foundToolCall, 'Expected to find an edit tool call').toBeTruthy();
 
     const newFileContent = rig.readFile(fileName);
 

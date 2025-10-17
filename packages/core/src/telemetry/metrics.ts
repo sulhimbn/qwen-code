@@ -10,34 +10,31 @@ import { SERVICE_NAME, EVENT_CHAT_COMPRESSION } from './constants.js';
 import type { Config } from '../config/config.js';
 import type { ModelSlashCommandEvent } from './types.js';
 
-const TOOL_CALL_COUNT = 'qwen_code.tool.call.count';
-const TOOL_CALL_LATENCY = 'qwen_code.tool.call.latency';
-const API_REQUEST_COUNT = 'qwen_code.api.request.count';
-const API_REQUEST_LATENCY = 'qwen_code.api.request.latency';
-const TOKEN_USAGE = 'qwen_code.token.usage';
-const SESSION_COUNT = 'qwen_code.session.count';
-const FILE_OPERATION_COUNT = 'qwen_code.file.operation.count';
-const INVALID_CHUNK_COUNT = 'qwen_code.chat.invalid_chunk.count';
-const CONTENT_RETRY_COUNT = 'qwen_code.chat.content_retry.count';
-const CONTENT_RETRY_FAILURE_COUNT =
-  'qwen_code.chat.content_retry_failure.count';
-const MODEL_SLASH_COMMAND_CALL_COUNT =
-  'qwen_code.slash_command.model.call_count';
-export const SUBAGENT_EXECUTION_COUNT = 'qwen-code.subagent.execution.count';
+const TOOL_CALL_COUNT = `${SERVICE_NAME}.tool.call.count`;
+const TOOL_CALL_LATENCY = `${SERVICE_NAME}.tool.call.latency`;
+const API_REQUEST_COUNT = `${SERVICE_NAME}.api.request.count`;
+const API_REQUEST_LATENCY = `${SERVICE_NAME}.api.request.latency`;
+const TOKEN_USAGE = `${SERVICE_NAME}.token.usage`;
+const SESSION_COUNT = `${SERVICE_NAME}.session.count`;
+const FILE_OPERATION_COUNT = `${SERVICE_NAME}.file.operation.count`;
+const INVALID_CHUNK_COUNT = `${SERVICE_NAME}.chat.invalid_chunk.count`;
+const CONTENT_RETRY_COUNT = `${SERVICE_NAME}.chat.content_retry.count`;
+const CONTENT_RETRY_FAILURE_COUNT = `${SERVICE_NAME}.chat.content_retry_failure.count`;
+const MODEL_SLASH_COMMAND_CALL_COUNT = `${SERVICE_NAME}.slash_command.model.call_count`;
+export const SUBAGENT_EXECUTION_COUNT = `${SERVICE_NAME}.subagent.execution.count`;
 
 // Performance Monitoring Metrics
-const STARTUP_TIME = 'qwen_code.startup.duration';
-const MEMORY_USAGE = 'qwen_code.memory.usage';
-const CPU_USAGE = 'qwen_code.cpu.usage';
-const TOOL_QUEUE_DEPTH = 'qwen_code.tool.queue.depth';
-const TOOL_EXECUTION_BREAKDOWN = 'qwen_code.tool.execution.breakdown';
-const TOKEN_EFFICIENCY = 'qwen_code.token.efficiency';
-const API_REQUEST_BREAKDOWN = 'qwen_code.api.request.breakdown';
-const PERFORMANCE_SCORE = 'qwen_code.performance.score';
-const REGRESSION_DETECTION = 'qwen_code.performance.regression';
-const REGRESSION_PERCENTAGE_CHANGE =
-  'qwen_code.performance.regression.percentage_change';
-const BASELINE_COMPARISON = 'qwen_code.performance.baseline.comparison';
+const STARTUP_TIME = `${SERVICE_NAME}.startup.duration`;
+const MEMORY_USAGE = `${SERVICE_NAME}.memory.usage`;
+const CPU_USAGE = `${SERVICE_NAME}.cpu.usage`;
+const TOOL_QUEUE_DEPTH = `${SERVICE_NAME}.tool.queue.depth`;
+const TOOL_EXECUTION_BREAKDOWN = `${SERVICE_NAME}.tool.execution.breakdown`;
+const TOKEN_EFFICIENCY = `${SERVICE_NAME}.token.efficiency`;
+const API_REQUEST_BREAKDOWN = `${SERVICE_NAME}.api.request.breakdown`;
+const PERFORMANCE_SCORE = `${SERVICE_NAME}.performance.score`;
+const REGRESSION_DETECTION = `${SERVICE_NAME}.performance.regression`;
+const REGRESSION_PERCENTAGE_CHANGE = `${SERVICE_NAME}.performance.regression.percentage_change`;
+const BASELINE_COMPARISON = `${SERVICE_NAME}.performance.baseline.comparison`;
 
 const baseMetricDefinition = {
   getCommonAttributes: (config: Config): Attributes => ({

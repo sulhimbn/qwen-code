@@ -79,7 +79,7 @@ const LINTERS = {
       tar -xf "${TEMP_DIR}/.shellcheck.txz" -C "${TEMP_DIR}/shellcheck" --strip-components=1
     `,
     run: `
-      git ls-files | grep -E '^([^.]+|.*\\.(sh|zsh|bash))' | xargs file --mime-type \
+      git ls-files | grep -v '^integration-tests/terminal-bench/' | grep -E '^([^.]+|.*\\.(sh|zsh|bash))' | xargs file --mime-type \
         | grep "text/x-shellscript" | awk '{ print substr($1, 1, length($1)-1) }' \
         | xargs shellcheck \
           --check-sourced \

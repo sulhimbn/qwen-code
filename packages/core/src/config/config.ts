@@ -478,7 +478,7 @@ export class Config {
     this.truncateToolOutputLines =
       params.truncateToolOutputLines ?? DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES;
     this.enableToolOutputTruncation = params.enableToolOutputTruncation ?? true;
-    this.useSmartEdit = params.useSmartEdit ?? true;
+    this.useSmartEdit = params.useSmartEdit ?? false;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
     this.extensionManagement = params.extensionManagement ?? true;
