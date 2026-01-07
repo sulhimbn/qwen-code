@@ -22,6 +22,14 @@ import type {
 
 // Grouped dependencies for clarity and easier mocking
 export interface CommandContext {
+  /**
+   * Execution mode for the current invocation.
+   *
+   * - interactive: React/Ink UI mode
+   * - non_interactive: non-interactive CLI mode (text/json)
+   * - acp: ACP/Zed integration mode
+   */
+  executionMode?: 'interactive' | 'non_interactive' | 'acp';
   // Invocation properties for when commands are called.
   invocation?: {
     /** The raw, untrimmed input string from the user. */
@@ -37,7 +45,7 @@ export interface CommandContext {
     config: Config | null;
     settings: LoadedSettings;
     git: GitService | undefined;
-    logger: Logger;
+    logger: Logger | null;
   };
   // UI state and history management
   ui: {
@@ -64,8 +72,6 @@ export interface CommandContext {
      * @param history The array of history items to load.
      */
     loadHistory: UseHistoryManagerReturn['loadHistory'];
-    /** Toggles a special display mode. */
-    toggleCorgiMode: () => void;
     toggleVimEnabled: () => Promise<boolean>;
     setGeminiMdFileCount: (count: number) => void;
     reloadCommands: () => void;
@@ -78,6 +84,8 @@ export interface CommandContext {
     stats: SessionStatsState;
     /** A transient list of shell commands the user has approved for this session. */
     sessionShellAllowlist: Set<string>;
+    /** Reset session metrics and prompt counters for a fresh session. */
+    startNewSession?: (sessionId: string) => void;
   };
   // Flag to indicate if an overwrite has been confirmed
   overwriteConfirmed?: boolean;
@@ -98,12 +106,6 @@ export interface QuitActionReturn {
   messages: HistoryItem[];
 }
 
-/** The return type for a command action that requests quit confirmation. */
-export interface QuitConfirmationActionReturn {
-  type: 'quit_confirmation';
-  messages: HistoryItem[];
-}
-
 /**
  * The return type for a command action that results in a simple message
  * being displayed to the user.
@@ -112,6 +114,19 @@ export interface MessageActionReturn {
   type: 'message';
   messageType: 'info' | 'error';
   content: string;
+}
+
+/**
+ * The return type for a command action that streams multiple messages.
+ * Used for long-running operations that need to send progress updates.
+ */
+export interface StreamMessagesActionReturn {
+  type: 'stream_messages';
+  messages: AsyncGenerator<
+    { messageType: 'info' | 'error'; content: string },
+    void,
+    unknown
+  >;
 }
 
 /**
@@ -130,7 +145,8 @@ export interface OpenDialogActionReturn {
     | 'subagent_create'
     | 'subagent_list'
     | 'permissions'
-    | 'approval-mode';
+    | 'approval-mode'
+    | 'resume';
 }
 
 /**
@@ -179,8 +195,8 @@ export interface ConfirmActionReturn {
 export type SlashCommandActionReturn =
   | ToolActionReturn
   | MessageActionReturn
+  | StreamMessagesActionReturn
   | QuitActionReturn
-  | QuitConfirmationActionReturn
   | OpenDialogActionReturn
   | LoadHistoryActionReturn
   | SubmitPromptActionReturn
@@ -214,7 +230,7 @@ export interface SlashCommand {
     | SlashCommandActionReturn
     | Promise<void | SlashCommandActionReturn>;
 
-  // Provides argument completion (e.g., completing a tag for `/chat resume <tag>`).
+  // Provides argument completion
   completion?: (
     context: CommandContext,
     partialArg: string,

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { GenerateContentResponse } from '@google/genai';
+
 export type ThoughtSummary = {
   subject: string;
   description: string;
@@ -27,7 +29,7 @@ export function parseThought(rawText: string): ThoughtSummary {
   const startIndex = rawText.indexOf(START_DELIMITER);
   if (startIndex === -1) {
     // No start delimiter found, the whole text is the description.
-    return { subject: '', description: rawText.trim() };
+    return { subject: '', description: rawText };
   }
 
   const endIndex = rawText.indexOf(
@@ -37,7 +39,7 @@ export function parseThought(rawText: string): ThoughtSummary {
   if (endIndex === -1) {
     // Start delimiter found but no end delimiter, so it's not a valid subject.
     // Treat the entire string as the description.
-    return { subject: '', description: rawText.trim() };
+    return { subject: '', description: rawText };
   }
 
   const subject = rawText
@@ -51,4 +53,24 @@ export function parseThought(rawText: string): ThoughtSummary {
   ).trim();
 
   return { subject, description };
+}
+
+export function getThoughtText(
+  response: GenerateContentResponse,
+): string | null {
+  if (response.candidates && response.candidates.length > 0) {
+    const candidate = response.candidates[0];
+
+    if (
+      candidate.content &&
+      candidate.content.parts &&
+      candidate.content.parts.length > 0
+    ) {
+      return candidate.content.parts
+        .filter((part) => part.thought)
+        .map((part) => part.text ?? '')
+        .join('');
+    }
+  }
+  return null;
 }

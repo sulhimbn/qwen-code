@@ -22,7 +22,10 @@ export default tseslint.config(
       'bundle/**',
       'package/bundle/**',
       '.integration-tests/**',
+      'packages/**/.integration-test/**',
       'dist/**',
+      'docs-site/.next/**',
+      'docs-site/out/**',
     ],
   },
   eslint.configs.recommended,
@@ -74,6 +77,8 @@ export default tseslint.config(
       },
     },
     rules: {
+      // We use TypeScript for React components; prop-types are unnecessary
+      'react/prop-types': 'off',
       // General Best Practice Rules (subset adapted for flat config)
       '@typescript-eslint/array-type': ['error', { default: 'array-simple' }],
       'arrow-body-style': ['error', 'as-needed'],
@@ -110,10 +115,14 @@ export default tseslint.config(
         {
           allow: [
             'react-dom/test-utils',
+            'react-dom/client',
             'memfs/lib/volume.js',
             'yargs/**',
             'msw/node',
-            '**/generated/**'
+            '**/generated/**',
+            './styles/tailwind.css',
+            './styles/App.css',
+            './styles/style.css'
           ],
         },
       ],
@@ -150,7 +159,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/*/src/**/*.test.{ts,tsx}'],
+    files: ['packages/*/src/**/*.test.{ts,tsx}', 'packages/**/test/**/*.test.{ts,tsx}'],
     plugins: {
       vitest,
     },
@@ -158,11 +167,19 @@ export default tseslint.config(
       ...vitest.configs.recommended.rules,
       'vitest/expect-expect': 'off',
       'vitest/no-commented-out-tests': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   },
   // extra settings for scripts that we run directly with node
   {
-    files: ['./scripts/**/*.js', 'esbuild.config.js'],
+    files: ['./scripts/**/*.js', 'esbuild.config.js', 'packages/*/scripts/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -229,7 +246,7 @@ export default tseslint.config(
   prettierConfig,
   // extra settings for scripts that we run directly with node
   {
-    files: ['./integration-tests/**/*.js'],
+    files: ['./integration-tests/**/*.{js,ts,tsx}'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -246,6 +263,27 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+    },
+  },
+  // Settings for docs-site directory
+  {
+    files: ['docs-site/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    rules: {
+      // Allow relaxed rules for documentation site
+      '@typescript-eslint/no-unused-vars': 'off',
+      'react/prop-types': 'off',
+      'react/react-in-jsx-scope': 'off',
     },
   },
 );

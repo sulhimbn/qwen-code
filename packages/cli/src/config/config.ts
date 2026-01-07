@@ -4,27 +4,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  FileFilteringOptions,
-  MCPServerConfig,
-  OutputFormat,
-} from '@qwen-code/qwen-code-core';
-import { extensionsCommand } from '../commands/extensions.js';
 import {
   ApprovalMode,
+  AuthType,
   Config,
   DEFAULT_QWEN_EMBEDDING_MODEL,
   DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
-  EditTool,
   FileDiscoveryService,
   getCurrentGeminiMdFilename,
   loadServerHierarchicalMemory,
   setGeminiMdFilename as setServerGeminiMdFilename,
-  ShellTool,
-  WriteFileTool,
   resolveTelemetrySettings,
   FatalConfigError,
+  Storage,
+  InputFormat,
+  OutputFormat,
+  isToolEnabled,
+  SessionService,
+  type ResumedSessionData,
+  type FileFilteringOptions,
+  type MCPServerConfig,
+  type ToolName,
+  EditTool,
+  ShellTool,
+  WriteFileTool,
 } from '@qwen-code/qwen-code-core';
+import { extensionsCommand } from '../commands/extensions.js';
 import type { Settings } from './settings.js';
 import yargs, { type Argv } from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -108,7 +113,9 @@ export interface CliArgs {
   telemetryOutfile: string | undefined;
   allowedMcpServerNames: string[] | undefined;
   allowedTools: string[] | undefined;
+  acp: boolean | undefined;
   experimentalAcp: boolean | undefined;
+  experimentalSkills: boolean | undefined;
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
   openaiLogging: boolean | undefined;
@@ -124,7 +131,38 @@ export interface CliArgs {
   screenReader: boolean | undefined;
   vlmSwitchMode: string | undefined;
   useSmartEdit: boolean | undefined;
+  inputFormat?: string | undefined;
   outputFormat: string | undefined;
+  includePartialMessages?: boolean;
+  /**
+   * If chat recording is disabled, the chat history would not be recorded,
+   * so --continue and --resume would not take effect.
+   */
+  chatRecording: boolean | undefined;
+  /** Resume the most recent session for the current project */
+  continue: boolean | undefined;
+  /** Resume a specific session by its ID */
+  resume: string | undefined;
+  maxSessionTurns: number | undefined;
+  coreTools: string[] | undefined;
+  excludeTools: string[] | undefined;
+  authType: string | undefined;
+  channel: string | undefined;
+}
+
+function normalizeOutputFormat(
+  format: string | OutputFormat | undefined,
+): OutputFormat | undefined {
+  if (!format) {
+    return undefined;
+  }
+  if (format === OutputFormat.STREAM_JSON) {
+    return OutputFormat.STREAM_JSON;
+  }
+  if (format === 'json' || format === OutputFormat.JSON) {
+    return OutputFormat.JSON;
+  }
+  return OutputFormat.TEXT;
 }
 
 export async function parseArguments(settings: Settings): Promise<CliArgs> {
@@ -204,6 +242,11 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
       'proxy',
       'Use the "proxy" setting in settings.json instead. This flag will be removed in a future version.',
     )
+    .option('chat-recording', {
+      type: 'boolean',
+      description:
+        'Enable chat recording to disk. If false, chat history is not saved and --continue/--resume will not work.',
+    })
     .command('$0 [query..]', 'Launch Qwen Code CLI', (yargsInstance: Argv) =>
       yargsInstance
         .positional('query', {
@@ -260,14 +303,29 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
             'Set the approval mode: plan (plan only), default (prompt for approval), auto-edit (auto-approve edit tools), yolo (auto-approve all tools)',
         })
         .option('checkpointing', {
-          alias: 'c',
           type: 'boolean',
           description: 'Enables checkpointing of file edits',
           default: false,
         })
-        .option('experimental-acp', {
+        .option('acp', {
           type: 'boolean',
           description: 'Starts the agent in ACP mode',
+        })
+        .option('experimental-acp', {
+          type: 'boolean',
+          description:
+            'Starts the agent in ACP mode (deprecated, use --acp instead)',
+          hidden: true,
+        })
+        .option('experimental-skills', {
+          type: 'boolean',
+          description: 'Enable experimental Skills feature',
+          default: false,
+        })
+        .option('channel', {
+          type: 'string',
+          choices: ['VSCode', 'ACP', 'SDK', 'CI'],
+          description: 'Channel identifier (VSCode, ACP, SDK, CI)',
         })
         .option('allowed-mcp-server-names', {
           type: 'array',
@@ -359,11 +417,72 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
             'Default behavior when images are detected in input. Values: once (one-time switch), session (switch for entire session), persist (continue with current model). Overrides settings files.',
           default: process.env['VLM_SWITCH_MODE'],
         })
+        .option('input-format', {
+          type: 'string',
+          choices: ['text', 'stream-json'],
+          description: 'The format consumed from standard input.',
+          default: 'text',
+        })
         .option('output-format', {
           alias: 'o',
           type: 'string',
           description: 'The format of the CLI output.',
-          choices: ['text', 'json'],
+          choices: ['text', 'json', 'stream-json'],
+        })
+        .option('include-partial-messages', {
+          type: 'boolean',
+          description:
+            'Include partial assistant messages when using stream-json output.',
+          default: false,
+        })
+        .option('continue', {
+          alias: 'c',
+          type: 'boolean',
+          description:
+            'Resume the most recent session for the current project.',
+          default: false,
+        })
+        .option('resume', {
+          alias: 'r',
+          type: 'string',
+          description:
+            'Resume a specific session by its ID. Use without an ID to show session picker.',
+        })
+        .option('max-session-turns', {
+          type: 'number',
+          description: 'Maximum number of session turns',
+        })
+        .option('core-tools', {
+          type: 'array',
+          string: true,
+          description: 'Core tool paths',
+          coerce: (tools: string[]) =>
+            tools.flatMap((tool) => tool.split(',').map((t) => t.trim())),
+        })
+        .option('exclude-tools', {
+          type: 'array',
+          string: true,
+          description: 'Tools to exclude',
+          coerce: (tools: string[]) =>
+            tools.flatMap((tool) => tool.split(',').map((t) => t.trim())),
+        })
+        .option('allowed-tools', {
+          type: 'array',
+          string: true,
+          description: 'Tools to allow, will bypass confirmation',
+          coerce: (tools: string[]) =>
+            tools.flatMap((tool) => tool.split(',').map((t) => t.trim())),
+        })
+        .option('auth-type', {
+          type: 'string',
+          choices: [
+            AuthType.USE_OPENAI,
+            AuthType.USE_ANTHROPIC,
+            AuthType.QWEN_OAUTH,
+            AuthType.USE_GEMINI,
+            AuthType.USE_VERTEX_AI,
+          ],
+          description: 'Authentication type',
         })
         .deprecateOption(
           'show-memory-usage',
@@ -407,6 +526,21 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           }
           if (argv['yolo'] && argv['approvalMode']) {
             return 'Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.';
+          }
+          if (
+            argv['includePartialMessages'] &&
+            argv['outputFormat'] !== OutputFormat.STREAM_JSON
+          ) {
+            return '--include-partial-messages requires --output-format stream-json';
+          }
+          if (
+            argv['inputFormat'] === 'stream-json' &&
+            argv['outputFormat'] !== OutputFormat.STREAM_JSON
+          ) {
+            return '--input-format stream-json requires --output-format stream-json';
+          }
+          if (argv['continue'] && argv['resume']) {
+            return 'Cannot use both --continue and --resume together. Use --continue to resume the latest session, or --resume <sessionId> to resume a specific session.';
           }
           return true;
         }),
@@ -463,6 +597,23 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
 
   // The import format is now only controlled by settings.memoryImportFormat
   // We no longer accept it as a CLI argument
+
+  // Handle deprecated --experimental-acp flag
+  if (result['experimentalAcp']) {
+    console.warn(
+      '\x1b[33m⚠ Warning: --experimental-acp is deprecated and will be removed in a future release. Please use --acp instead.\x1b[0m',
+    );
+    // Map experimental-acp to acp if acp is not explicitly set
+    if (!result['acp']) {
+      (result as Record<string, unknown>)['acp'] = true;
+    }
+  }
+
+  // Apply ACP fallback: if acp or experimental-acp is present but no explicit --channel, treat as ACP
+  if ((result['acp'] || result['experimentalAcp']) && !result['channel']) {
+    (result as Record<string, unknown>)['channel'] = 'ACP';
+  }
+
   return result as unknown as CliArgs;
 }
 
@@ -522,7 +673,6 @@ export async function loadCliConfig(
   settings: Settings,
   extensions: Extension[],
   extensionEnablementManager: ExtensionEnablementManager,
-  sessionId: string,
   argv: CliArgs,
   cwd: string = process.cwd(),
 ): Promise<Config> {
@@ -560,6 +710,20 @@ export async function loadCliConfig(
     (e) => e.contextFiles,
   );
 
+  // Automatically load output-language.md if it exists
+  const outputLanguageFilePath = path.join(
+    Storage.getGlobalQwenDir(),
+    'output-language.md',
+  );
+  if (fs.existsSync(outputLanguageFilePath)) {
+    extensionContextFilePaths.push(outputLanguageFilePath);
+    if (debugMode) {
+      logger.debug(
+        `Found output-language.md, adding to context files: ${outputLanguageFilePath}`,
+      );
+    }
+  }
+
   const fileService = new FileDiscoveryService(cwd);
 
   const fileFiltering = {
@@ -588,6 +752,22 @@ export async function loadCliConfig(
 
   let mcpServers = mergeMcpServers(settings, activeExtensions);
   const question = argv.promptInteractive || argv.prompt || '';
+  const inputFormat: InputFormat =
+    (argv.inputFormat as InputFormat | undefined) ?? InputFormat.TEXT;
+  const argvOutputFormat = normalizeOutputFormat(
+    argv.outputFormat as string | OutputFormat | undefined,
+  );
+  const settingsOutputFormat = normalizeOutputFormat(settings.output?.format);
+  const outputFormat =
+    argvOutputFormat ?? settingsOutputFormat ?? OutputFormat.TEXT;
+  const outputSettingsFormat: OutputFormat =
+    outputFormat === OutputFormat.STREAM_JSON
+      ? settingsOutputFormat &&
+        settingsOutputFormat !== OutputFormat.STREAM_JSON
+        ? settingsOutputFormat
+        : OutputFormat.TEXT
+      : (outputFormat as OutputFormat);
+  const includePartialMessages = Boolean(argv.includePartialMessages);
 
   // Determine approval mode with backward compatibility
   let approvalMode: ApprovalMode;
@@ -629,23 +809,74 @@ export async function loadCliConfig(
     throw err;
   }
 
-  // Interactive mode: explicit -i flag or (TTY + no args + no -p flag)
+  // Interactive mode determination with priority:
+  // 1. If promptInteractive (-i flag) is provided, it is explicitly interactive
+  // 2. If outputFormat is stream-json or json (no matter input-format) along with query or prompt, it is non-interactive
+  // 3. If no query or prompt is provided, check isTTY: TTY means interactive, non-TTY means non-interactive
   const hasQuery = !!argv.query;
-  const interactive =
-    !!argv.promptInteractive ||
-    (process.stdin.isTTY && !hasQuery && !argv.prompt);
+  const hasPrompt = !!argv.prompt;
+  let interactive: boolean;
+  if (argv.promptInteractive) {
+    // Priority 1: Explicit -i flag means interactive
+    interactive = true;
+  } else if (
+    (outputFormat === OutputFormat.STREAM_JSON ||
+      outputFormat === OutputFormat.JSON) &&
+    (hasQuery || hasPrompt)
+  ) {
+    // Priority 2: JSON/stream-json output with query/prompt means non-interactive
+    interactive = false;
+  } else if (!hasQuery && !hasPrompt) {
+    // Priority 3: No query or prompt means interactive only if TTY (format arguments ignored)
+    interactive = process.stdin.isTTY ?? false;
+  } else {
+    // Default: If we have query/prompt but output format is TEXT, assume non-interactive
+    // (fallback for edge cases where query/prompt is provided with TEXT output)
+    interactive = false;
+  }
   // In non-interactive mode, exclude tools that require a prompt.
+  // However, if stream-json input is used, control can be requested via JSON messages,
+  // so tools should not be excluded in that case.
   const extraExcludes: string[] = [];
-  if (!interactive && !argv.experimentalAcp) {
+  const resolvedCoreTools = argv.coreTools || settings.tools?.core || [];
+  const resolvedAllowedTools =
+    argv.allowedTools || settings.tools?.allowed || [];
+  const isExplicitlyEnabled = (toolName: ToolName): boolean => {
+    if (resolvedCoreTools.length > 0) {
+      if (isToolEnabled(toolName, resolvedCoreTools, [])) {
+        return true;
+      }
+    }
+    if (resolvedAllowedTools.length > 0) {
+      if (isToolEnabled(toolName, resolvedAllowedTools, [])) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const excludeUnlessExplicit = (toolName: ToolName): void => {
+    if (!isExplicitlyEnabled(toolName)) {
+      extraExcludes.push(toolName);
+    }
+  };
+
+  if (
+    !interactive &&
+    !argv.experimentalAcp &&
+    inputFormat !== InputFormat.STREAM_JSON
+  ) {
     switch (approvalMode) {
       case ApprovalMode.PLAN:
       case ApprovalMode.DEFAULT:
-        // In default non-interactive mode, all tools that require approval are excluded.
-        extraExcludes.push(ShellTool.Name, EditTool.Name, WriteFileTool.Name);
+        // In default non-interactive mode, all tools that require approval are excluded,
+        // unless explicitly enabled via coreTools/allowedTools.
+        excludeUnlessExplicit(ShellTool.Name as ToolName);
+        excludeUnlessExplicit(EditTool.Name as ToolName);
+        excludeUnlessExplicit(WriteFileTool.Name as ToolName);
         break;
       case ApprovalMode.AUTO_EDIT:
         // In auto-edit non-interactive mode, only tools that still require a prompt are excluded.
-        extraExcludes.push(ShellTool.Name);
+        excludeUnlessExplicit(ShellTool.Name as ToolName);
         break;
       case ApprovalMode.YOLO:
         // No extra excludes for YOLO mode.
@@ -660,6 +891,7 @@ export async function loadCliConfig(
     settings,
     activeExtensions,
     extraExcludes.length > 0 ? extraExcludes : undefined,
+    argv.excludeTools,
   );
   const blockedMcpServers: Array<{ name: string; extensionName: string }> = [];
 
@@ -690,11 +922,30 @@ export async function loadCliConfig(
     );
   }
 
+  const selectedAuthType =
+    (argv.authType as AuthType | undefined) ||
+    settings.security?.auth?.selectedType;
+
+  const apiKey =
+    (selectedAuthType === AuthType.USE_OPENAI
+      ? argv.openaiApiKey ||
+        process.env['OPENAI_API_KEY'] ||
+        settings.security?.auth?.apiKey
+      : '') || '';
+  const baseUrl =
+    (selectedAuthType === AuthType.USE_OPENAI
+      ? argv.openaiBaseUrl ||
+        process.env['OPENAI_BASE_URL'] ||
+        settings.security?.auth?.baseUrl
+      : '') || '';
   const resolvedModel =
     argv.model ||
-    process.env['OPENAI_MODEL'] ||
-    process.env['QWEN_MODEL'] ||
-    settings.model?.name;
+    (selectedAuthType === AuthType.USE_OPENAI
+      ? process.env['OPENAI_MODEL'] ||
+        process.env['QWEN_MODEL'] ||
+        settings.model?.name
+      : '') ||
+    '';
 
   const sandboxConfig = await loadSandboxConfig(settings, argv);
   const screenReader =
@@ -704,8 +955,33 @@ export async function loadCliConfig(
 
   const vlmSwitchMode =
     argv.vlmSwitchMode || settings.experimental?.vlmSwitchMode;
+
+  let sessionId: string | undefined;
+  let sessionData: ResumedSessionData | undefined;
+
+  if (argv.continue || argv.resume) {
+    const sessionService = new SessionService(cwd);
+    if (argv.continue) {
+      sessionData = await sessionService.loadLastSession();
+      if (sessionData) {
+        sessionId = sessionData.conversation.sessionId;
+      }
+    }
+
+    if (argv.resume) {
+      sessionId = argv.resume;
+      sessionData = await sessionService.loadSession(argv.resume);
+      if (!sessionData) {
+        const message = `No saved session found with ID ${argv.resume}. Run \`qwen --resume\` without an ID to choose from existing sessions.`;
+        console.log(message);
+        process.exit(1);
+      }
+    }
+  }
+
   return new Config({
     sessionId,
+    sessionData,
     embeddingModel: DEFAULT_QWEN_EMBEDDING_MODEL,
     sandbox: sandboxConfig,
     targetDir: cwd,
@@ -715,7 +991,7 @@ export async function loadCliConfig(
     debugMode,
     question,
     fullContext: argv.allFiles || false,
-    coreTools: settings.tools?.core || undefined,
+    coreTools: argv.coreTools || settings.tools?.core || undefined,
     allowedTools: argv.allowedTools || settings.tools?.allowed || undefined,
     excludeTools,
     toolDiscoveryCommand: settings.tools?.discoveryCommand,
@@ -748,24 +1024,23 @@ export async function loadCliConfig(
     model: resolvedModel,
     extensionContextFilePaths,
     sessionTokenLimit: settings.model?.sessionTokenLimit ?? -1,
-    maxSessionTurns: settings.model?.maxSessionTurns ?? -1,
-    experimentalZedIntegration: argv.experimentalAcp || false,
+    maxSessionTurns:
+      argv.maxSessionTurns ?? settings.model?.maxSessionTurns ?? -1,
+    experimentalZedIntegration: argv.acp || argv.experimentalAcp || false,
+    experimentalSkills: argv.experimentalSkills || false,
     listExtensions: argv.listExtensions || false,
     extensions: allExtensions,
     blockedMcpServers,
     noBrowser: !!process.env['NO_BROWSER'],
-    authType: settings.security?.auth?.selectedType,
+    authType: selectedAuthType,
+    inputFormat,
+    outputFormat,
+    includePartialMessages,
     generationConfig: {
       ...(settings.model?.generationConfig || {}),
       model: resolvedModel,
-      apiKey:
-        argv.openaiApiKey ||
-        process.env['OPENAI_API_KEY'] ||
-        settings.security?.auth?.apiKey,
-      baseUrl:
-        argv.openaiBaseUrl ||
-        process.env['OPENAI_BASE_URL'] ||
-        settings.security?.auth?.baseUrl,
+      apiKey,
+      baseUrl,
       enableOpenAILogging:
         (typeof argv.openaiLogging === 'undefined'
           ? settings.model?.enableOpenAILogging
@@ -789,7 +1064,6 @@ export async function loadCliConfig(
     useBuiltinRipgrep: settings.tools?.useBuiltinRipgrep,
     shouldUseNodePtyShell: settings.tools?.shell?.enableInteractiveShell,
     skipNextSpeakerCheck: settings.model?.skipNextSpeakerCheck,
-    enablePromptCompletion: settings.general?.enablePromptCompletion ?? false,
     skipLoopDetection: settings.model?.skipLoopDetection ?? false,
     skipStartupContext: settings.model?.skipStartupContext ?? false,
     vlmSwitchMode,
@@ -798,9 +1072,16 @@ export async function loadCliConfig(
     enableToolOutputTruncation: settings.tools?.enableToolOutputTruncation,
     eventEmitter: appEvents,
     useSmartEdit: argv.useSmartEdit ?? settings.useSmartEdit,
+    gitCoAuthor: settings.general?.gitCoAuthor,
     output: {
-      format: (argv.outputFormat ?? settings.output?.format) as OutputFormat,
+      format: outputSettingsFormat,
     },
+    channel: argv.channel,
+    // Precedence: explicit CLI flag > settings file > default(true).
+    // NOTE: do NOT set a yargs default for `chat-recording`, otherwise argv will
+    // always be true and the settings file can never disable recording.
+    chatRecording:
+      argv.chatRecording ?? settings.general?.chatRecording ?? true,
   });
 }
 
@@ -860,8 +1141,10 @@ function mergeExcludeTools(
   settings: Settings,
   extensions: Extension[],
   extraExcludes?: string[] | undefined,
+  cliExcludeTools?: string[] | undefined,
 ): string[] {
   const allExcludeTools = new Set([
+    ...(cliExcludeTools || []),
     ...(settings.tools?.exclude || []),
     ...(extraExcludes || []),
   ]);

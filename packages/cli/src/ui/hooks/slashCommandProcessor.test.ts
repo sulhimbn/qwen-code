@@ -110,6 +110,9 @@ describe('useSlashCommandProcessor', () => {
   const mockSetQuittingMessages = vi.fn();
 
   const mockConfig = makeFakeConfig({});
+  mockConfig.getChatRecordingService = vi.fn().mockReturnValue({
+    recordSlashCommand: vi.fn(),
+  });
   const mockSettings = {} as LoadedSettings;
 
   beforeEach(() => {
@@ -150,7 +153,6 @@ describe('useSlashCommandProcessor', () => {
           openModelDialog: mockOpenModelDialog,
           quit: mockSetQuittingMessages,
           setDebugMessage: vi.fn(),
-          toggleCorgiMode: vi.fn(),
         },
       ),
     );
@@ -305,11 +307,15 @@ describe('useSlashCommandProcessor', () => {
 
       expect(childAction).toHaveBeenCalledWith(
         expect.objectContaining({
+          invocation: expect.objectContaining({
+            name: 'child',
+            args: 'with args',
+          }),
           services: expect.objectContaining({
             config: mockConfig,
           }),
           ui: expect.objectContaining({
-            addItem: mockAddItem,
+            addItem: expect.any(Function),
           }),
         }),
         'with args',
@@ -902,7 +908,6 @@ describe('useSlashCommandProcessor', () => {
           vi.fn(), // openThemeDialog
           mockOpenAuthDialog,
           vi.fn(), // openEditorDialog
-          vi.fn(), // toggleCorgiMode
           mockSetQuittingMessages,
           vi.fn(), // openSettingsDialog
           vi.fn(), // openModelSelectionDialog
@@ -911,7 +916,6 @@ describe('useSlashCommandProcessor', () => {
           vi.fn(), // toggleVimEnabled
           vi.fn(), // setIsProcessing
           vi.fn(), // setGeminiMdFileCount
-          vi.fn(), // _showQuitConfirmation
         ),
       );
 

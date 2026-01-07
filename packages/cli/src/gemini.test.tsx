@@ -22,6 +22,7 @@ import {
 import { type LoadedSettings } from './config/settings.js';
 import { appEvents, AppEvent } from './utils/events.js';
 import type { Config } from '@qwen-code/qwen-code-core';
+import { OutputFormat } from '@qwen-code/qwen-code-core';
 
 // Custom error to identify mock process.exit calls
 class MockProcessExitError extends Error {
@@ -158,6 +159,7 @@ describe('gemini.tsx main function', () => {
         getScreenReader: () => false,
         getGeminiMdFileCount: () => 0,
         getProjectRoot: () => '/',
+        getOutputFormat: () => OutputFormat.TEXT,
       } as unknown as Config;
     });
     vi.mocked(loadSettings).mockReturnValue({
@@ -230,6 +232,143 @@ describe('gemini.tsx main function', () => {
     // Avoid the process.exit error from being thrown.
     processExitSpy.mockRestore();
   });
+
+  it('invokes runNonInteractiveStreamJson and performs cleanup in stream-json mode', async () => {
+    const originalIsTTY = Object.getOwnPropertyDescriptor(
+      process.stdin,
+      'isTTY',
+    );
+    const originalIsRaw = Object.getOwnPropertyDescriptor(
+      process.stdin,
+      'isRaw',
+    );
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdin, 'isRaw', {
+      value: false,
+      configurable: true,
+    });
+
+    const processExitSpy = vi
+      .spyOn(process, 'exit')
+      .mockImplementation((code) => {
+        throw new MockProcessExitError(code);
+      });
+
+    const { loadCliConfig, parseArguments } = await import(
+      './config/config.js'
+    );
+    const { loadSettings } = await import('./config/settings.js');
+    const cleanupModule = await import('./utils/cleanup.js');
+    const extensionModule = await import('./config/extension.js');
+    const validatorModule = await import('./validateNonInterActiveAuth.js');
+    const streamJsonModule = await import('./nonInteractive/session.js');
+    const initializerModule = await import('./core/initializer.js');
+    const startupWarningsModule = await import('./utils/startupWarnings.js');
+    const userStartupWarningsModule = await import(
+      './utils/userStartupWarnings.js'
+    );
+
+    vi.mocked(cleanupModule.cleanupCheckpoints).mockResolvedValue(undefined);
+    vi.mocked(cleanupModule.registerCleanup).mockImplementation(() => {});
+    const runExitCleanupMock = vi.mocked(cleanupModule.runExitCleanup);
+    runExitCleanupMock.mockResolvedValue(undefined);
+    vi.spyOn(extensionModule, 'loadExtensions').mockReturnValue([]);
+    vi.spyOn(
+      extensionModule.ExtensionStorage,
+      'getUserExtensionsDir',
+    ).mockReturnValue('/tmp/extensions');
+    vi.spyOn(initializerModule, 'initializeApp').mockResolvedValue({
+      authError: null,
+      themeError: null,
+      shouldOpenAuthDialog: false,
+      geminiMdFileCount: 0,
+    });
+    vi.spyOn(startupWarningsModule, 'getStartupWarnings').mockResolvedValue([]);
+    vi.spyOn(
+      userStartupWarningsModule,
+      'getUserStartupWarnings',
+    ).mockResolvedValue([]);
+
+    const validatedConfig = { validated: true } as unknown as Config;
+    const validateAuthSpy = vi
+      .spyOn(validatorModule, 'validateNonInteractiveAuth')
+      .mockResolvedValue(validatedConfig);
+    const runStreamJsonSpy = vi
+      .spyOn(streamJsonModule, 'runNonInteractiveStreamJson')
+      .mockResolvedValue(undefined);
+
+    vi.mocked(loadSettings).mockReturnValue({
+      errors: [],
+      merged: {
+        advanced: {},
+        security: { auth: {} },
+        ui: {},
+      },
+      setValue: vi.fn(),
+      forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
+    } as never);
+
+    vi.mocked(parseArguments).mockResolvedValue({
+      extensions: [],
+    } as never);
+
+    const configStub = {
+      isInteractive: () => false,
+      getQuestion: () => '  hello stream  ',
+      getSandbox: () => false,
+      getDebugMode: () => false,
+      getListExtensions: () => false,
+      getMcpServers: () => ({}),
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getIdeMode: () => false,
+      getExperimentalZedIntegration: () => false,
+      getScreenReader: () => false,
+      getGeminiMdFileCount: () => 0,
+      getProjectRoot: () => '/',
+      getInputFormat: () => 'stream-json',
+      getContentGeneratorConfig: () => ({ authType: 'test-auth' }),
+    } as unknown as Config;
+
+    vi.mocked(loadCliConfig).mockResolvedValue(configStub);
+
+    process.env['SANDBOX'] = '1';
+    try {
+      await main();
+    } catch (error) {
+      if (!(error instanceof MockProcessExitError)) {
+        throw error;
+      }
+    } finally {
+      processExitSpy.mockRestore();
+      if (originalIsTTY) {
+        Object.defineProperty(process.stdin, 'isTTY', originalIsTTY);
+      } else {
+        delete (process.stdin as { isTTY?: unknown }).isTTY;
+      }
+      if (originalIsRaw) {
+        Object.defineProperty(process.stdin, 'isRaw', originalIsRaw);
+      } else {
+        delete (process.stdin as { isRaw?: unknown }).isRaw;
+      }
+      delete process.env['SANDBOX'];
+    }
+
+    expect(runStreamJsonSpy).toHaveBeenCalledTimes(1);
+    const [configArg, inputArg] = runStreamJsonSpy.mock.calls[0];
+    expect(configArg).toBe(validatedConfig);
+    expect(inputArg).toBe('hello stream');
+
+    expect(validateAuthSpy).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      configStub,
+      expect.any(Object),
+    );
+    expect(runExitCleanupMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('gemini.tsx main function kitty protocol', () => {
@@ -240,8 +379,8 @@ describe('gemini.tsx main function kitty protocol', () => {
 
   beforeEach(() => {
     // Set no relaunch in tests since process spawning causing issues in tests
-    originalEnvNoRelaunch = process.env['GEMINI_CLI_NO_RELAUNCH'];
-    process.env['GEMINI_CLI_NO_RELAUNCH'] = 'true';
+    originalEnvNoRelaunch = process.env['QWEN_CODE_NO_RELAUNCH'];
+    process.env['QWEN_CODE_NO_RELAUNCH'] = 'true';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!(process.stdin as any).setRawMode) {
@@ -263,9 +402,9 @@ describe('gemini.tsx main function kitty protocol', () => {
   afterEach(() => {
     // Restore original env variables
     if (originalEnvNoRelaunch !== undefined) {
-      process.env['GEMINI_CLI_NO_RELAUNCH'] = originalEnvNoRelaunch;
+      process.env['QWEN_CODE_NO_RELAUNCH'] = originalEnvNoRelaunch;
     } else {
-      delete process.env['GEMINI_CLI_NO_RELAUNCH'];
+      delete process.env['QWEN_CODE_NO_RELAUNCH'];
     }
   });
 
@@ -321,7 +460,9 @@ describe('gemini.tsx main function kitty protocol', () => {
       telemetryOutfile: undefined,
       allowedMcpServerNames: undefined,
       allowedTools: undefined,
+      acp: undefined,
       experimentalAcp: undefined,
+      experimentalSkills: undefined,
       extensions: undefined,
       listExtensions: undefined,
       openaiLogging: undefined,
@@ -337,7 +478,17 @@ describe('gemini.tsx main function kitty protocol', () => {
       screenReader: undefined,
       vlmSwitchMode: undefined,
       useSmartEdit: undefined,
+      inputFormat: undefined,
       outputFormat: undefined,
+      includePartialMessages: undefined,
+      continue: undefined,
+      resume: undefined,
+      coreTools: undefined,
+      excludeTools: undefined,
+      authType: undefined,
+      maxSessionTurns: undefined,
+      channel: undefined,
+      chatRecording: undefined,
     });
 
     await main();
@@ -412,6 +563,7 @@ describe('startInteractiveUI', () => {
   vi.mock('./utils/cleanup.js', () => ({
     cleanupCheckpoints: vi.fn(() => Promise.resolve()),
     registerCleanup: vi.fn(),
+    runExitCleanup: vi.fn(() => Promise.resolve()),
   }));
 
   vi.mock('ink', () => ({
@@ -487,5 +639,38 @@ describe('startInteractiveUI', () => {
     // We need a small delay to let it execute
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(checkForUpdates).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not check for updates when update nag is disabled', async () => {
+    const { checkForUpdates } = await import('./ui/utils/updateCheck.js');
+
+    const mockInitializationResult = {
+      authError: null,
+      themeError: null,
+      shouldOpenAuthDialog: false,
+      geminiMdFileCount: 0,
+    };
+
+    const settingsWithUpdateNagDisabled = {
+      merged: {
+        general: {
+          disableUpdateNag: true,
+        },
+        ui: {
+          hideWindowTitle: false,
+        },
+      },
+    } as LoadedSettings;
+
+    await startInteractiveUI(
+      mockConfig,
+      settingsWithUpdateNagDisabled,
+      mockStartupWarnings,
+      mockWorkspaceRoot,
+      mockInitializationResult,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(checkForUpdates).not.toHaveBeenCalled();
   });
 });

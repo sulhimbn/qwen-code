@@ -23,6 +23,7 @@ package-lock.json
 .idea
 *.iml
 .cursor
+.qoder
 
 # OS metadata
 .DS_Store
@@ -57,3 +58,8 @@ gha-creds-*.json
 
 # Log files
 patch_output.log
+
+# docs build
+docs-site/.next
+# content is a symlink to ../docs
+docs-site/content

@@ -252,6 +252,10 @@ assistant: "I'm going to use the Task tool to launch the with the greeting-respo
   protected createInvocation(params: TaskParams) {
     return new TaskToolInvocation(this.config, this.subagentManager, params);
   }
+
+  getAvailableSubagentNames(): string[] {
+    return this.availableSubagents.map((subagent) => subagent.name);
+  }
 }
 
 class TaskToolInvocation extends BaseToolInvocation<TaskParams, ToolResult> {
@@ -332,7 +336,7 @@ class TaskToolInvocation extends BaseToolInvocation<TaskParams, ToolResult> {
             ...this.currentToolCalls![toolCallIndex],
             status: event.success ? 'success' : 'failed',
             error: event.error,
-            resultDisplay: event.resultDisplay,
+            responseParts: event.responseParts,
           };
 
           this.updateDisplay(

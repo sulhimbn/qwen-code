@@ -17,6 +17,7 @@ import type {
   ToolResultDisplay,
   ToolCallConfirmationDetails,
   ToolExecuteConfirmationDetails,
+  ToolConfirmationPayload,
 } from './tools.js';
 import {
   BaseDeclarativeTool,
@@ -102,7 +103,10 @@ export class ShellToolInvocation extends BaseToolInvocation<
       title: 'Confirm Shell Command',
       command: this.params.command,
       rootCommand: commandsToConfirm.join(', '),
-      onConfirm: async (outcome: ToolConfirmationOutcome) => {
+      onConfirm: async (
+        outcome: ToolConfirmationOutcome,
+        _payload?: ToolConfirmationPayload,
+      ) => {
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {
           commandsToConfirm.forEach((command) => this.allowlist.add(command));
         }
@@ -139,9 +143,22 @@ export class ShellToolInvocation extends BaseToolInvocation<
       const shouldRunInBackground = this.params.is_background;
       let finalCommand = processedCommand;
 
-      // If explicitly marked as background and doesn't already end with &, add it
-      if (shouldRunInBackground && !finalCommand.trim().endsWith('&')) {
+      // On non-Windows, use & to run in background.
+      // On Windows, we don't use start /B because it creates a detached process that
+      // doesn't die when the parent dies. Instead, we rely on the race logic below
+      // to return early while keeping the process attached (detached: false).
+      if (
+        !isWindows &&
+        shouldRunInBackground &&
+        !finalCommand.trim().endsWith('&')
+      ) {
         finalCommand = finalCommand.trim() + ' &';
+      }
+
+      // On Windows, we rely on the race logic below to handle background tasks.
+      // We just ensure the command string is clean.
+      if (isWindows && shouldRunInBackground) {
+        finalCommand = finalCommand.trim().replace(/&+$/, '').trim();
       }
 
       // pgrep is not available on Windows, so we can't get background PIDs
@@ -165,10 +182,6 @@ export class ShellToolInvocation extends BaseToolInvocation<
           commandToExecute,
           cwd,
           (event: ShellOutputEvent) => {
-            if (!updateOutput) {
-              return;
-            }
-
             let shouldUpdate = false;
 
             switch (event.type) {
@@ -197,7 +210,7 @@ export class ShellToolInvocation extends BaseToolInvocation<
               }
             }
 
-            if (shouldUpdate) {
+            if (shouldUpdate && updateOutput) {
               updateOutput(
                 typeof cumulativeOutput === 'string'
                   ? cumulativeOutput
@@ -213,6 +226,21 @@ export class ShellToolInvocation extends BaseToolInvocation<
 
       if (pid && setPidCallback) {
         setPidCallback(pid);
+      }
+
+      if (shouldRunInBackground) {
+        // For background tasks, return immediately with PID info
+        // Note: We cannot reliably detect startup errors for background processes
+        // since their stdio is typically detached/ignored
+        const pidMsg = pid ? ` PID: ${pid}` : '';
+        const killHint = isWindows
+          ? ' (Use taskkill /F /T /PID <pid> to stop)'
+          : ' (Use kill <pid> to stop)';
+
+        return {
+          llmContent: `Background command started.${pidMsg}${killHint}`,
+          returnDisplay: `Background command started.${pidMsg}${killHint}`,
+        };
       }
 
       const result = await resultPromise;
@@ -330,13 +358,14 @@ export class ShellToolInvocation extends BaseToolInvocation<
   private addCoAuthorToGitCommit(command: string): string {
     // Check if co-author feature is enabled
     const gitCoAuthorSettings = this.config.getGitCoAuthor();
+
     if (!gitCoAuthorSettings.enabled) {
       return command;
     }
 
-    // Check if this is a git commit command
-    const gitCommitPattern = /^git\s+commit/;
-    if (!gitCommitPattern.test(command.trim())) {
+    // Check if this is a git commit command (anywhere in the command, e.g., after "cd /path &&")
+    const gitCommitPattern = /\bgit\s+commit\b/;
+    if (!gitCommitPattern.test(command)) {
       return command;
     }
 
@@ -345,15 +374,27 @@ export class ShellToolInvocation extends BaseToolInvocation<
 
 Co-authored-by: ${gitCoAuthorSettings.name} <${gitCoAuthorSettings.email}>`;
 
-    // Handle different git commit patterns
-    // Match -m "message" or -m 'message'
-    const messagePattern = /(-m\s+)(['"])((?:\\.|[^\\])*?)(\2)/;
-    const match = command.match(messagePattern);
+    // Handle different git commit patterns:
+    // Match -m "message" or -m 'message', including combined flags like -am
+    // Use separate patterns to avoid ReDoS (catastrophic backtracking)
+    //
+    // Pattern breakdown:
+    //   -[a-zA-Z]*m  matches -m, -am, -nm, etc. (combined short flags)
+    //   \s+          matches whitespace after the flag
+    //   [^"\\]       matches any char except double-quote and backslash
+    //   \\.          matches escape sequences like \" or \\
+    //   (?:...|...)* matches normal chars or escapes, repeated
+    const doubleQuotePattern = /(-[a-zA-Z]*m\s+)"((?:[^"\\]|\\.)*)"/;
+    const singleQuotePattern = /(-[a-zA-Z]*m\s+)'((?:[^'\\]|\\.)*)'/;
+    const doubleMatch = command.match(doubleQuotePattern);
+    const singleMatch = command.match(singleQuotePattern);
+    const match = doubleMatch ?? singleMatch;
+    const quote = doubleMatch ? '"' : "'";
 
     if (match) {
-      const [fullMatch, prefix, quote, existingMessage, closingQuote] = match;
+      const [fullMatch, prefix, existingMessage] = match;
       const newMessage = existingMessage + coAuthor;
-      const replacement = prefix + quote + newMessage + closingQuote;
+      const replacement = prefix + quote + newMessage + quote;
 
       return command.replace(fullMatch, replacement);
     }

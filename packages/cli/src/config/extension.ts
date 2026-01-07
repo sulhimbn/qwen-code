@@ -30,7 +30,6 @@ import { getErrorMessage } from '../utils/errors.js';
 import { recursivelyHydrateStrings } from './extensions/variables.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
-import { randomUUID } from 'node:crypto';
 import {
   cloneFromGit,
   downloadFromGitHubRelease,
@@ -134,7 +133,6 @@ function getTelemetryConfig(cwd: string) {
   const config = new Config({
     telemetry: settings.merged.telemetry,
     interactive: false,
-    sessionId: randomUUID(),
     targetDir: cwd,
     cwd,
     model: '',
@@ -583,7 +581,7 @@ function extensionConsentString(extensionConfig: ExtensionConfig): string {
   }
   if (extensionConfig.contextFileName) {
     output.push(
-      `This extension will append info to your gemini.md context using ${extensionConfig.contextFileName}`,
+      `This extension will append info to your QWEN.md context using ${extensionConfig.contextFileName}`,
     );
   }
   if (extensionConfig.excludeTools) {

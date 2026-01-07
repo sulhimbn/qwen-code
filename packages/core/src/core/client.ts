@@ -15,11 +15,7 @@ import type {
 
 // Config
 import { ApprovalMode, type Config } from '../config/config.js';
-import {
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_MODEL_AUTO,
-  DEFAULT_THINKING_MODE,
-} from '../config/models.js';
+import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 
 // Core modules
 import type { ContentGenerator } from './contentGenerator.js';
@@ -39,7 +35,6 @@ import {
 } from './turn.js';
 
 // Services
-import { type ChatRecordingService } from '../services/chatRecordingService.js';
 import {
   ChatCompressionService,
   COMPRESSION_PRESERVE_THRESHOLD,
@@ -55,12 +50,17 @@ import {
   NextSpeakerCheckEvent,
   logNextSpeakerCheck,
 } from '../telemetry/index.js';
+import { uiTelemetryService } from '../telemetry/uiTelemetry.js';
 
 // Utilities
 import {
   getDirectoryContextString,
   getInitialChatHistory,
 } from '../utils/environmentContext.js';
+import {
+  buildApiHistoryFromConversation,
+  replayUiTelemetryFromConversation,
+} from '../services/sessionService.js';
 import { reportError } from '../utils/errorReporting.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';
@@ -74,29 +74,14 @@ import { type File, type IdeContext } from '../ide/types.js';
 // Fallback handling
 import { handleFallback } from '../fallback/handler.js';
 
-export function isThinkingSupported(model: string) {
-  return model.startsWith('gemini-2.5') || model === DEFAULT_GEMINI_MODEL_AUTO;
-}
-
-export function isThinkingDefault(model: string) {
-  if (model.startsWith('gemini-2.5-flash-lite')) {
-    return false;
-  }
-  return model.startsWith('gemini-2.5') || model === DEFAULT_GEMINI_MODEL_AUTO;
-}
-
 const MAX_TURNS = 100;
 
 export class GeminiClient {
   private chat?: GeminiChat;
-  private readonly generateContentConfig: GenerateContentConfig = {
-    temperature: 0,
-    topP: 1,
-  };
   private sessionTurnCount = 0;
 
   private readonly loopDetector: LoopDetectionService;
-  private lastPromptId: string;
+  private lastPromptId: string | undefined = undefined;
   private lastSentIdeContext: IdeContext | undefined;
   private forceFullIdeContext = true;
 
@@ -108,11 +93,24 @@ export class GeminiClient {
 
   constructor(private readonly config: Config) {
     this.loopDetector = new LoopDetectionService(config);
-    this.lastPromptId = this.config.getSessionId();
   }
 
   async initialize() {
-    this.chat = await this.startChat();
+    this.lastPromptId = this.config.getSessionId();
+
+    // Check if we're resuming from a previous session
+    const resumedSessionData = this.config.getResumedSessionData();
+    if (resumedSessionData) {
+      replayUiTelemetryFromConversation(resumedSessionData.conversation);
+      // Convert resumed session to API history format
+      // Each ChatRecord's message field is already a Content object
+      const resumedHistory = buildApiHistoryFromConversation(
+        resumedSessionData.conversation,
+      );
+      this.chat = await this.startChat(resumedHistory);
+    } else {
+      this.chat = await this.startChat();
+    }
   }
 
   private getContentGeneratorOrFail(): ContentGenerator {
@@ -161,10 +159,6 @@ export class GeminiClient {
     this.chat = await this.startChat();
   }
 
-  getChatRecordingService(): ChatRecordingService | undefined {
-    return this.chat?.getChatRecordingService();
-  }
-
   getLoopDetectionService(): LoopDetectionService {
     return this.loopDetector;
   }
@@ -195,23 +189,14 @@ export class GeminiClient {
       const model = this.config.getModel();
       const systemInstruction = getCoreSystemPrompt(userMemory, model);
 
-      const config: GenerateContentConfig = { ...this.generateContentConfig };
-
-      if (isThinkingSupported(model)) {
-        config.thinkingConfig = {
-          includeThoughts: true,
-          thinkingBudget: DEFAULT_THINKING_MODE,
-        };
-      }
-
       return new GeminiChat(
         this.config,
         {
           systemInstruction,
-          ...config,
           tools,
         },
         history,
+        this.config.getChatRecordingService(),
       );
     } catch (error) {
       await reportError(
@@ -396,12 +381,18 @@ export class GeminiClient {
     request: PartListUnion,
     signal: AbortSignal,
     prompt_id: string,
+    options?: { isContinuation: boolean },
     turns: number = MAX_TURNS,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
-    const isNewPrompt = this.lastPromptId !== prompt_id;
-    if (isNewPrompt) {
+    if (!options?.isContinuation) {
       this.loopDetector.reset(prompt_id);
       this.lastPromptId = prompt_id;
+
+      // record user message for session management
+      this.config.getChatRecordingService()?.recordUserMessage(request);
+
+      // strip thoughts from history before sending the message
+      this.stripThoughtsFromHistory();
     }
     this.sessionTurnCount++;
     if (
@@ -510,7 +501,7 @@ export class GeminiClient {
 
     // append system reminders to the request
     let requestToSent = await flatMapTextParts(request, async (text) => [text]);
-    if (isNewPrompt) {
+    if (!options?.isContinuation) {
       const systemReminders = [];
 
       // add subagent system reminder if there are subagents
@@ -525,7 +516,9 @@ export class GeminiClient {
 
       // add plan mode system reminder if approval mode is plan
       if (this.config.getApprovalMode() === ApprovalMode.PLAN) {
-        systemReminders.push(getPlanModeSystemReminder());
+        systemReminders.push(
+          getPlanModeSystemReminder(this.config.getSdkMode()),
+        );
       }
 
       requestToSent = [...systemReminders, ...requestToSent];
@@ -580,6 +573,7 @@ export class GeminiClient {
           nextRequest,
           signal,
           prompt_id,
+          options,
           boundedTurns - 1,
         );
       }
@@ -595,11 +589,6 @@ export class GeminiClient {
   ): Promise<GenerateContentResponse> {
     let currentAttemptModel: string = model;
 
-    const configToUse: GenerateContentConfig = {
-      ...this.generateContentConfig,
-      ...generationConfig,
-    };
-
     try {
       const userMemory = this.config.getUserMemory();
       const finalSystemInstruction = generationConfig.systemInstruction
@@ -608,7 +597,7 @@ export class GeminiClient {
 
       const requestConfig: GenerateContentConfig = {
         abortSignal,
-        ...configToUse,
+        ...generationConfig,
         systemInstruction: finalSystemInstruction,
       };
 
@@ -624,7 +613,7 @@ export class GeminiClient {
             config: requestConfig,
             contents,
           },
-          this.lastPromptId,
+          this.lastPromptId!,
         );
       };
       const onPersistent429Callback = async (
@@ -649,7 +638,7 @@ export class GeminiClient {
         `Error generating content via API with model ${currentAttemptModel}.`,
         {
           requestContents: contents,
-          requestConfig: configToUse,
+          requestConfig: generationConfig,
         },
         'generateContent-api',
       );
@@ -678,7 +667,14 @@ export class GeminiClient {
     if (info.compressionStatus === CompressionStatus.COMPRESSED) {
       // Success: update chat with new compressed history
       if (newHistory) {
+        const chatRecordingService = this.config.getChatRecordingService();
+        chatRecordingService?.recordChatCompression({
+          info,
+          compressedHistory: newHistory,
+        });
+
         this.chat = await this.startChat(newHistory);
+        uiTelemetryService.setLastPromptTokenCount(info.newTokenCount);
         this.forceFullIdeContext = true;
       }
     } else if (

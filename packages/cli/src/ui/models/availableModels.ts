@@ -5,6 +5,7 @@
  */
 
 import { AuthType, DEFAULT_QWEN_MODEL } from '@qwen-code/qwen-code-core';
+import { t } from '../../i18n/index.js';
 
 export type AvailableModel = {
   id: string;
@@ -20,14 +21,20 @@ export const AVAILABLE_MODELS_QWEN: AvailableModel[] = [
   {
     id: MAINLINE_CODER,
     label: MAINLINE_CODER,
-    description:
-      'The latest Qwen Coder model from Alibaba Cloud ModelStudio (version: qwen3-coder-plus-2025-09-23)',
+    get description() {
+      return t(
+        'The latest Qwen Coder model from Alibaba Cloud ModelStudio (version: qwen3-coder-plus-2025-09-23)',
+      );
+    },
   },
   {
     id: MAINLINE_VLM,
     label: MAINLINE_VLM,
-    description:
-      'The latest Qwen Vision model from Alibaba Cloud ModelStudio (version: qwen3-vl-plus-2025-09-23)',
+    get description() {
+      return t(
+        'The latest Qwen Vision model from Alibaba Cloud ModelStudio (version: qwen3-vl-plus-2025-09-23)',
+      );
+    },
     isVision: true,
   },
 ];
@@ -53,6 +60,11 @@ export function getOpenAIAvailableModelFromEnv(): AvailableModel | null {
   return id ? { id, label: id } : null;
 }
 
+export function getAnthropicAvailableModelFromEnv(): AvailableModel | null {
+  const id = process.env['ANTHROPIC_MODEL']?.trim();
+  return id ? { id, label: id } : null;
+}
+
 export function getAvailableModelsForAuthType(
   authType: AuthType,
 ): AvailableModel[] {
@@ -62,6 +74,10 @@ export function getAvailableModelsForAuthType(
     case AuthType.USE_OPENAI: {
       const openAIModel = getOpenAIAvailableModelFromEnv();
       return openAIModel ? [openAIModel] : [];
+    }
+    case AuthType.USE_ANTHROPIC: {
+      const anthropicModel = getAnthropicAvailableModelFromEnv();
+      return anthropicModel ? [anthropicModel] : [];
     }
     default:
       // For other auth types, return empty array for now

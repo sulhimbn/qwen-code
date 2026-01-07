@@ -20,7 +20,6 @@ describe('Flash Model Fallback Configuration', () => {
       isDirectory: () => true,
     } as fs.Stats);
     config = new Config({
-      sessionId: 'test-session',
       targetDir: '/test',
       debugMode: false,
       cwd: '/test',
@@ -32,7 +31,7 @@ describe('Flash Model Fallback Configuration', () => {
       config as unknown as { contentGeneratorConfig: unknown }
     ).contentGeneratorConfig = {
       model: DEFAULT_GEMINI_MODEL,
-      authType: 'oauth-personal',
+      authType: 'gemini-api-key',
     };
   });
 
@@ -44,7 +43,6 @@ describe('Flash Model Fallback Configuration', () => {
     it('should only mark as switched if contentGeneratorConfig exists', async () => {
       // Create config without initializing contentGeneratorConfig
       const newConfig = new Config({
-        sessionId: 'test-session-2',
         targetDir: '/test',
         debugMode: false,
         cwd: '/test',
@@ -67,7 +65,6 @@ describe('Flash Model Fallback Configuration', () => {
     it('should fall back to initial model if contentGeneratorConfig is not available', () => {
       // Test with fresh config where contentGeneratorConfig might not be set
       const newConfig = new Config({
-        sessionId: 'test-session-2',
         targetDir: '/test',
         debugMode: false,
         cwd: '/test',

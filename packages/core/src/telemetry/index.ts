@@ -25,7 +25,7 @@ export {
   parseTelemetryTargetValue,
 } from './config.js';
 export {
-  logCliConfiguration,
+  logStartSession,
   logUserPrompt,
   logToolCall,
   logApiRequest,
@@ -43,6 +43,8 @@ export {
   logExtensionUninstall,
   logRipgrepFallback,
   logNextSpeakerCheck,
+  logAuth,
+  logSkillLaunch,
 } from './loggers.js';
 export type { SlashCommandEvent, ChatCompressionEvent } from './types.js';
 export {
@@ -61,6 +63,8 @@ export {
   ToolOutputTruncatedEvent,
   RipgrepFallbackEvent,
   NextSpeakerCheckEvent,
+  AuthEvent,
+  SkillLaunchEvent,
 } from './types.js';
 export { makeSlashCommandEvent, makeChatCompressionEvent } from './types.js';
 export type { TelemetryEvent } from './types.js';

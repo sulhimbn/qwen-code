@@ -27,7 +27,7 @@
       "outFiles": [
         "${workspaceFolder}/packages/vscode-ide-companion/dist/**/*.js"
       ],
-      "preLaunchTask": "npm: build: vscode-ide-companion"
+      "preLaunchTask": "launch: vscode-ide-companion (copy+build)"
     },
     {
       "name": "Attach",
@@ -73,7 +73,15 @@
       "request": "launch",
       "name": "Launch CLI Non-Interactive",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start", "--", "-p", "${input:prompt}", "-y"],
+      "runtimeArgs": [
+        "run",
+        "start",
+        "--",
+        "-p",
+        "${input:prompt}",
+        "--output-format",
+        "stream-json"
+      ],
       "skipFiles": ["<node_internals>/**"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",

@@ -10,8 +10,8 @@ import {
   JsonFormatter,
   parseAndFormatApiError,
   FatalTurnLimitedError,
-  FatalToolExecutionError,
   FatalCancellationError,
+  ToolErrorType,
 } from '@qwen-code/qwen-code-core';
 
 export function getErrorMessage(error: unknown): string {
@@ -88,8 +88,16 @@ export function handleError(
 
 /**
  * Handles tool execution errors specifically.
- * In JSON mode, outputs formatted JSON error and exits.
+ * In JSON/STREAM_JSON mode, outputs error message to stderr only and does not exit.
+ * The error will be properly formatted in the tool_result block by the adapter,
+ * allowing the session to continue so the LLM can decide what to do next.
  * In text mode, outputs error message to stderr only.
+ *
+ * @param toolName - Name of the tool that failed
+ * @param toolError - The error that occurred during tool execution
+ * @param config - Configuration object
+ * @param errorCode - Optional error code
+ * @param resultDisplay - Optional display message for the error
  */
 export function handleToolError(
   toolName: string,
@@ -98,22 +106,25 @@ export function handleToolError(
   errorCode?: string | number,
   resultDisplay?: string,
 ): void {
-  const errorMessage = `Error executing tool ${toolName}: ${resultDisplay || toolError.message}`;
-  const toolExecutionError = new FatalToolExecutionError(errorMessage);
+  // Check if this is a permission denied error in non-interactive mode
+  const isExecutionDenied = errorCode === ToolErrorType.EXECUTION_DENIED;
+  const isNonInteractive = !config.isInteractive();
+  const isTextMode = config.getOutputFormat() === OutputFormat.TEXT;
 
-  if (config.getOutputFormat() === OutputFormat.JSON) {
-    const formatter = new JsonFormatter();
-    const formattedError = formatter.formatError(
-      toolExecutionError,
-      errorCode ?? toolExecutionError.exitCode,
-    );
+  // Show warning for permission denied errors in non-interactive text mode
+  if (isExecutionDenied && isNonInteractive && isTextMode) {
+    const warningMessage =
+      `Warning: Tool "${toolName}" requires user approval but cannot execute in non-interactive mode.\n` +
+      `To enable automatic tool execution, use the -y flag (YOLO mode):\n` +
+      `Example: qwen -p 'your prompt' -y\n\n`;
+    process.stderr.write(warningMessage);
+  }
 
-    console.error(formattedError);
-    process.exit(
-      typeof errorCode === 'number' ? errorCode : toolExecutionError.exitCode,
+  // Always log detailed error in debug mode
+  if (config.getDebugMode()) {
+    console.error(
+      `Error executing tool ${toolName}: ${resultDisplay || toolError.message}`,
     );
-  } else {
-    console.error(errorMessage);
   }
 }
 

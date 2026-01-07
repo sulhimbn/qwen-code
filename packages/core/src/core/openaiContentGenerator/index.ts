@@ -13,6 +13,7 @@ import { OpenAIContentGenerator } from './openaiContentGenerator.js';
 import {
   DashScopeOpenAICompatibleProvider,
   DeepSeekOpenAICompatibleProvider,
+  ModelScopeOpenAICompatibleProvider,
   OpenRouterOpenAICompatibleProvider,
   type OpenAICompatibleProvider,
   DefaultOpenAICompatibleProvider,
@@ -78,15 +79,16 @@ export function determineProvider(
     );
   }
 
+  // Check for ModelScope provider
+  if (ModelScopeOpenAICompatibleProvider.isModelScopeProvider(config)) {
+    return new ModelScopeOpenAICompatibleProvider(
+      contentGeneratorConfig,
+      cliConfig,
+    );
+  }
+
   // Default provider for standard OpenAI-compatible APIs
   return new DefaultOpenAICompatibleProvider(contentGeneratorConfig, cliConfig);
 }
-
-// Services
-export {
-  type TelemetryService,
-  type RequestContext,
-  DefaultTelemetryService,
-} from './telemetryService.js';
 
 export { type ErrorHandler, EnhancedErrorHandler } from './errorHandler.js';

@@ -16,6 +16,7 @@ import {
 import { type SettingScope } from '../../config/settings.js';
 import type { AuthState } from '../types.js';
 import { type VisionSwitchOutcome } from '../components/ModelSwitchDialog.js';
+import { type OpenAICredentials } from '../components/OpenAIKeyPrompt.js';
 
 export interface UIActions {
   handleThemeSelect: (
@@ -30,12 +31,11 @@ export interface UIActions {
   handleAuthSelect: (
     authType: AuthType | undefined,
     scope: SettingScope,
-  ) => void;
+    credentials?: OpenAICredentials,
+  ) => Promise<void>;
   setAuthState: (state: AuthState) => void;
   onAuthError: (error: string) => void;
-  // Qwen OAuth handlers
-  handleQwenAuthTimeout: () => void;
-  handleQwenAuthCancel: () => void;
+  cancelAuthentication: () => void;
   handleEditorSelect: (
     editorType: EditorType | undefined,
     scope: SettingScope,
@@ -55,7 +55,6 @@ export interface UIActions {
   handleClearScreen: () => void;
   onWorkspaceMigrationDialogOpen: () => void;
   onWorkspaceMigrationDialogClose: () => void;
-  handleProQuotaChoice: (choice: 'auth' | 'continue') => void;
   // Vision switch dialog
   handleVisionSwitchSelect: (outcome: VisionSwitchOutcome) => void;
   // Welcome back dialog
@@ -64,6 +63,10 @@ export interface UIActions {
   // Subagent dialogs
   closeSubagentCreateDialog: () => void;
   closeAgentsManagerDialog: () => void;
+  // Resume session dialog
+  openResumeDialog: () => void;
+  closeResumeDialog: () => void;
+  handleResume: (sessionId: string) => void;
 }
 
 export const UIActionsContext = createContext<UIActions | null>(null);

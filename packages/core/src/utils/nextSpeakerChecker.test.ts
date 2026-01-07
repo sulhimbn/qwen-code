@@ -32,6 +32,7 @@ vi.mock('node:fs', () => {
       });
     }),
     existsSync: vi.fn((path: string) => mockFileSystem.has(path)),
+    appendFileSync: vi.fn(),
   };
 
   return {
@@ -60,6 +61,7 @@ describe('checkNextSpeaker', () => {
         generateContentStream: vi.fn(),
         countTokens: vi.fn(),
         embedContent: vi.fn(),
+        useSummarizedThinking: vi.fn().mockReturnValue(false),
       } as ContentGenerator,
       {} as Config,
     );

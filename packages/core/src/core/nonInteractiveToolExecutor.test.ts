@@ -47,7 +47,7 @@ describe('executeToolCall', () => {
       getDebugMode: () => false,
       getContentGeneratorConfig: () => ({
         model: 'test-model',
-        authType: 'oauth-personal',
+        authType: 'gemini-api-key',
       }),
       getShellExecutionConfig: () => ({
         terminalWidth: 90,
@@ -62,6 +62,7 @@ describe('executeToolCall', () => {
       getUseSmartEdit: () => false,
       getUseModelRouter: () => false,
       getGeminiClient: () => null, // No client needed for these tests
+      getChatRecordingService: () => undefined,
     } as unknown as Config;
 
     abortController = new AbortController();

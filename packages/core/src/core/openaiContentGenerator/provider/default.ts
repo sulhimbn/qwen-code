@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { GenerateContentConfig } from '@google/genai';
 import type { Config } from '../../../config/config.js';
 import type { ContentGeneratorConfig } from '../../contentGenerator.js';
 import { DEFAULT_TIMEOUT, DEFAULT_MAX_RETRIES } from '../constants.js';
@@ -54,5 +55,9 @@ export class DefaultOpenAICompatibleProvider
     return {
       ...request, // Preserve all original parameters including sampling params
     };
+  }
+
+  getDefaultGenerationConfig(): GenerateContentConfig {
+    return {};
   }
 }

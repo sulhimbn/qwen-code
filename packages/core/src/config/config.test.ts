@@ -16,26 +16,12 @@ import {
   QwenLogger,
 } from '../telemetry/index.js';
 import type { ContentGeneratorConfig } from '../core/contentGenerator.js';
-import { DEFAULT_DASHSCOPE_BASE_URL } from '../core/openaiContentGenerator/constants.js';
 import {
   AuthType,
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
 import { GeminiClient } from '../core/client.js';
 import { GitService } from '../services/gitService.js';
-
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    existsSync: vi.fn().mockReturnValue(true),
-    statSync: vi.fn().mockReturnValue({
-      isDirectory: vi.fn().mockReturnValue(true),
-    }),
-    realpathSync: vi.fn((path) => path),
-  };
-});
-
 import { ShellTool } from '../tools/shell.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { GrepTool } from '../tools/grep.js';
@@ -54,15 +40,19 @@ function createToolMock(toolName: string) {
   return ToolMock;
 }
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  const mocked = {
     ...actual,
     existsSync: vi.fn().mockReturnValue(true),
     statSync: vi.fn().mockReturnValue({
       isDirectory: vi.fn().mockReturnValue(true),
     }),
     realpathSync: vi.fn((path) => path),
+  };
+  return {
+    ...mocked,
+    default: mocked, // Required for ESM default imports (import fs from 'node:fs')
   };
 });
 
@@ -72,6 +62,7 @@ vi.mock('../tools/tool-registry', () => {
   ToolRegistryMock.prototype.registerTool = vi.fn();
   ToolRegistryMock.prototype.discoverAllTools = vi.fn();
   ToolRegistryMock.prototype.getAllTools = vi.fn(() => []); // Mock methods if needed
+  ToolRegistryMock.prototype.getAllToolNames = vi.fn(() => []);
   ToolRegistryMock.prototype.getTool = vi.fn();
   ToolRegistryMock.prototype.getFunctionDeclarations = vi.fn(() => []);
   return { ToolRegistry: ToolRegistryMock };
@@ -197,7 +188,6 @@ describe('Server Config (config.ts)', () => {
   const USER_MEMORY = 'Test User Memory';
   const TELEMETRY_SETTINGS = { enabled: false };
   const EMBEDDING_MODEL = 'gemini-embedding';
-  const SESSION_ID = 'test-session-id';
   const baseParams: ConfigParameters = {
     cwd: '/tmp',
     embeddingModel: EMBEDDING_MODEL,
@@ -208,7 +198,6 @@ describe('Server Config (config.ts)', () => {
     fullContext: FULL_CONTEXT,
     userMemory: USER_MEMORY,
     telemetry: TELEMETRY_SETTINGS,
-    sessionId: SESSION_ID,
     model: MODEL,
     usageStatisticsEnabled: false,
   };
@@ -217,7 +206,7 @@ describe('Server Config (config.ts)', () => {
     // Reset mocks if necessary
     vi.clearAllMocks();
     vi.spyOn(QwenLogger.prototype, 'logStartSessionEvent').mockImplementation(
-      () => undefined,
+      async () => undefined,
     );
   });
 
@@ -283,7 +272,7 @@ describe('Server Config (config.ts)', () => {
         authType,
         {
           model: MODEL,
-          baseUrl: DEFAULT_DASHSCOPE_BASE_URL,
+          baseUrl: undefined,
         },
       );
       // Verify that contentGeneratorConfig is updated
@@ -291,23 +280,6 @@ describe('Server Config (config.ts)', () => {
       expect(GeminiClient).toHaveBeenCalledWith(config);
       // Verify that fallback mode is reset
       expect(config.isInFallbackMode()).toBe(false);
-    });
-
-    it('should strip thoughts when switching from GenAI to Vertex', async () => {
-      const config = new Config(baseParams);
-
-      vi.mocked(createContentGeneratorConfig).mockImplementation(
-        (_: Config, authType: AuthType | undefined) =>
-          ({ authType }) as unknown as ContentGeneratorConfig,
-      );
-
-      await config.refreshAuth(AuthType.USE_GEMINI);
-
-      await config.refreshAuth(AuthType.LOGIN_WITH_GOOGLE);
-
-      expect(
-        config.getGeminiClient().stripThoughtsFromHistory,
-      ).toHaveBeenCalledWith();
     });
 
     it('should not strip thoughts when switching from Vertex to GenAI', async () => {
@@ -476,7 +448,7 @@ describe('Server Config (config.ts)', () => {
         ...baseParams,
         usageStatisticsEnabled: true,
       });
-      await config.refreshAuth(AuthType.USE_GEMINI);
+      await config.initialize();
 
       expect(QwenLogger.prototype.logStartSessionEvent).toHaveBeenCalledOnce();
     });
@@ -956,7 +928,6 @@ describe('Server Config (config.ts)', () => {
 
 describe('setApprovalMode with folder trust', () => {
   const baseParams: ConfigParameters = {
-    sessionId: 'test',
     targetDir: '.',
     debugMode: false,
     model: 'test-model',
@@ -987,7 +958,6 @@ describe('setApprovalMode with folder trust', () => {
 
   it('should NOT throw an error when setting PLAN mode in an untrusted folder', () => {
     const config = new Config({
-      sessionId: 'test',
       targetDir: '.',
       debugMode: false,
       model: 'test-model',
@@ -1085,7 +1055,7 @@ describe('setApprovalMode with folder trust', () => {
         expect.any(RipgrepFallbackEvent),
       );
       const event = (logRipgrepFallback as Mock).mock.calls[0][1];
-      expect(event.error).toContain('Ripgrep is not available');
+      expect(event.error).toContain('ripgrep is not available');
     });
 
     it('should fall back to GrepTool and log error when useRipgrep is true and builtin ripgrep is not available', async () => {
@@ -1109,7 +1079,7 @@ describe('setApprovalMode with folder trust', () => {
         expect.any(RipgrepFallbackEvent),
       );
       const event = (logRipgrepFallback as Mock).mock.calls[0][1];
-      expect(event.error).toContain('Ripgrep is not available');
+      expect(event.error).toContain('ripgrep is not available');
     });
 
     it('should fall back to GrepTool and log error when canUseRipgrep throws an error', async () => {
@@ -1133,7 +1103,7 @@ describe('setApprovalMode with folder trust', () => {
         expect.any(RipgrepFallbackEvent),
       );
       const event = (logRipgrepFallback as Mock).mock.calls[0][1];
-      expect(event.error).toBe(String(error));
+      expect(event.error).toBe(`ripGrep check failed`);
     });
 
     it('should register GrepTool when useRipgrep is false', async () => {
@@ -1168,7 +1138,6 @@ describe('BaseLlmClient Lifecycle', () => {
   const USER_MEMORY = 'Test User Memory';
   const TELEMETRY_SETTINGS = { enabled: false };
   const EMBEDDING_MODEL = 'gemini-embedding';
-  const SESSION_ID = 'test-session-id';
   const baseParams: ConfigParameters = {
     cwd: '/tmp',
     embeddingModel: EMBEDDING_MODEL,
@@ -1179,7 +1148,6 @@ describe('BaseLlmClient Lifecycle', () => {
     fullContext: FULL_CONTEXT,
     userMemory: USER_MEMORY,
     telemetry: TELEMETRY_SETTINGS,
-    sessionId: SESSION_ID,
     model: MODEL,
     usageStatisticsEnabled: false,
   };
