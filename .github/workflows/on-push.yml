@@ -16,7 +16,7 @@ jobs:
     name: on-push
     runs-on: ubuntu-24.04-arm
     env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
@@ -34,13 +34,13 @@ jobs:
           poll-interval-seconds: 30
           same-branch-only: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Cache
         uses: actions/cache@v5
@@ -69,7 +69,7 @@ jobs:
           count=$(gh issue list --state open --json number --jq 'length')
           echo "open_issue_count=$count" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 00 flow
         timeout-minutes: 30
