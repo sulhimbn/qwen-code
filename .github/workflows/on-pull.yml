@@ -50,11 +50,13 @@ jobs:
           cache: 'npm'
 
       - name: Configure Git
+        continue-on-error: true
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
 
       - name: Branch Management
+        continue-on-error: true
         run: |
           git fetch --all
           if git branch -r | grep "origin/agent-workspace"; then
