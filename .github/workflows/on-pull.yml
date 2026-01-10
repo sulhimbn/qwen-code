@@ -1,8 +1,10 @@
-name: on-pull
-
+name: on pull
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *' 
   pull_request:
+  issues:
+  push:
 
 permissions:
   contents: write
